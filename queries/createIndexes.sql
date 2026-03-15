@@ -33,3 +33,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_top_key ON top(Key);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_top_pool_key ON top_pool(Key);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_weather_key ON weather(Key);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_worldgen_key ON worldgen(Key);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_blacklist_category_id ON blacklist(category, id);

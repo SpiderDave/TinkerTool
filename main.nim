@@ -96,6 +96,25 @@ proc pretty(elapsed: Duration): string =
         result &= fmt"{p[Minutes]} minutes, "
     result &= fmt"{p[Seconds].float + p[Milliseconds].float * 0.001} seconds."
 
+# this is for multiple statements (exec can't do it)
+proc execSqlFile(db: DbConn, path: string) =
+    var cleaned = newStringOfCap(1024)
+
+    # strip -- comments
+    for line in lines(path):
+        let p = line.find("--")
+        if p >= 0:
+            cleaned.add(line[0..<p])
+        else:
+            cleaned.add(line)
+        cleaned.add('\n')
+
+    # split into statements
+    for stmt in cleaned.split(';'):
+        let s = stmt.strip()
+        if s.len > 0:
+            db.exec(sql(s))
+
 proc buildDatabase(db: DbConn) =
     echo "Building database..."
     
@@ -203,6 +222,7 @@ proc buildDatabase(db: DbConn) =
     #"""):
     #    echo row[0]
 
+    db.execSqlFile("queries/blacklist.sql")
     db.exec(sql(readFile("queries/createIndexes.sql")))
 
 proc buildLanguages(db: DbConn) =
@@ -436,9 +456,9 @@ proc usage() =
     echo "      -categories                            Show categories."
     echo "  -h, -help                                  Show this help."
     echo ""
-    echo "Examples:"
-    echo "    ", app.name, " -b"
-    echo ""
+#    echo "Examples:"
+#    echo "    ", app.name, " -b"
+#    echo ""
     quit()
 
 when isMainModule:
@@ -598,6 +618,9 @@ when isMainModule:
         db.buildLanguages()
         let elapsed = getMonoTime() - start
         echo "Elapsed: ", elapsed.pretty
+
+    if options.hasOpt("test"):
+        db.execSqlFile("queries/blacklist.sql")
 
     if options.hasOpt("get"):
         let opt = options.getOpt("g", "get")

@@ -32,6 +32,13 @@ FROM
     localized
     
 WHERE
-    __column__ LIKE ? ESCAPE '\'
+    __column__ LIKE ? ESCAPE '\' -- adding this single quote to fix incorrect syntax highlighting: '
+
+    AND NOT EXISTS (
+        SELECT 1
+        FROM blacklist b
+        WHERE b.category = 'mob'
+          AND b.id = localized.id
+    )
 ;
 
