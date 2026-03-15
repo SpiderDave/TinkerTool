@@ -29,7 +29,7 @@ localized AS (
 )
 
 -- Final selection with localized search
-SELECT DISTINCT
+SELECT
     *,
     title_localized AS Title,
     description_localized AS Description,

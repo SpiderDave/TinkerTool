@@ -20,11 +20,10 @@ localized AS (
     LEFT JOIN translations AS en_name
         ON en_name.key = biome.name
        AND en_name.lang = lang.value COLLATE NOCASE
-
 )
 
 -- Final selection with localized search
-SELECT DISTINCT
+SELECT
     *,
     name_localized AS Name,
     name as Name_unlocalized

@@ -23,7 +23,7 @@ localized AS (
 )
 
 -- Final selection with localized search
-SELECT DISTINCT
+SELECT
     name_localized AS Name
 
 FROM

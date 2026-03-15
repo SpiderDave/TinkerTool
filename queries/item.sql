@@ -41,7 +41,7 @@ localized AS (
 )
 
 -- Final selection with localized search
-SELECT DISTINCT
+SELECT
     *,
     name_localized AS Name,
     gender_localized AS Gender,
