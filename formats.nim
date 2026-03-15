@@ -1,0 +1,13 @@
+import tables
+
+var saveFormat* = initTable[int, seq[string]]()
+
+saveFormat[22] = @[
+    "number",
+    "number",
+    "json",
+    "jstring","jstring","jstring",
+    "number","number","number","number","number","number",
+    "json","json","json","json","json",
+    "jstring"
+]
