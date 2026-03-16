@@ -12,7 +12,7 @@ WHERE
         SELECT 1
         FROM blacklist b
         WHERE b.category = '__category__'
-          AND b.id = localized.id
+          AND b.id = __category__.id
     )
 ;
 

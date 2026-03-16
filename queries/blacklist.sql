@@ -9,6 +9,7 @@ CREATE TABLE blacklist (
 INSERT INTO blacklist VALUES ('biome', 16); -- Settlement
 INSERT INTO blacklist VALUES ('biome', 36); -- Swamp City
 INSERT INTO blacklist VALUES ('biome', 37); -- Pirate Outpost
+INSERT INTO blacklist VALUES ('biome', 44); -- Crab Land
 
 INSERT INTO blacklist VALUES ('recipe', 265); -- Wasteland Wood Coal recipe
 INSERT INTO blacklist VALUES ('recipe', 266); -- Fir Wood Coal recipe

@@ -82,7 +82,6 @@ proc createFolders(path: string) =
             except:
                 discard
 
-
 # human readable duration
 proc pretty(elapsed: Duration): string =
     let p = elapsed.toParts
@@ -213,14 +212,6 @@ proc buildDatabase(db: DbConn) =
                     discard
         else:
             discard
-
-    #for row in db.fastRows(sql"""
-    #    SELECT name
-    #    FROM sqlite_master
-    #    WHERE type = 'table'
-    #    ORDER BY name
-    #"""):
-    #    echo row[0]
 
     db.execSqlFile("queries/blacklist.sql")
     db.exec(sql(readFile("queries/createIndexes.sql")))
@@ -437,6 +428,8 @@ proc usage() =
     echo "      -first                                 Limit results to the first found."
     echo "      -exact                                 Require exact match unless wildcards are used."
     echo "      -limit <limit>                         Limit results to the <limit> results."
+    echo "      -only <prop>                           Only show property/column <prop> as a simple list."
+    echo "      -enumerate                             Display number of results."
     echo "      -language <language>                   Set language to <language>."
 #    echo "      -clip                                  Copy output to the clipboard."
     echo "      -saveimages                            Copy and rename icon images. Category specific folders and names will"
@@ -475,6 +468,10 @@ when isMainModule:
     if options.hasOpt("h", "help"):
         usage()
     if options.empty:
+        usage()
+    
+    # required parameter sanity check
+    if options.hasOpt("only") and options.getOpt("only").len == 0:
         usage()
     
     if options.hasOpt("categories"):
@@ -673,6 +670,12 @@ when isMainModule:
         
         var rows = db.get(queryString.sql, language, search)
         
+        # used to track duplicates for -only option
+        var allValues: HashSet[string]
+        
+        # used to track displayed results for -enumerate
+        var nItems = 0
+        
         var rowIndex = 0
         for row in mitems(rows):
             if row.hasKey("Name"):
@@ -684,25 +687,40 @@ when isMainModule:
                     row["Name"] = row["Name"].replace("%Name% the ", "The ")
             
             if options.hasOpt("list"):
-                if row.hasKey("Name"):
+                if row.hasKey("Name") and row.hasKey("ID"):
                     echo fmt"""{row["ID"]} {row["Name"]}"""
-                else:
+                elif row.hasKey("Key") and row.hasKey("ID"):
                     echo fmt"""{row["ID"]} {row["Key"]}"""
             else:
-                echo "----------------------------------------"
-                if row.hasKey("Name"):
+                if row.hasKey("Name") and row.hasKey("ID"):
+                    echo "----------------------------------------"
                     echo fmt"""{row["ID"]} {row["Name"]}"""
-                else:
+                    echo "----------------------------------------"
+                elif row.hasKey("Key") and row.hasKey("ID"):
+                    echo "----------------------------------------"
                     echo fmt"""{row["ID"]} {row["Key"]}"""
-                echo "----------------------------------------"
+                    echo "----------------------------------------"
+                
                 for col, value in row.pairs:
                     if value == "":
                         discard
                     elif "_localized" in col or "_unlocalized" in col:
                         discard
                     else:
-                        echo fmt"{col:<31} {value}"
-                echo ""
+                        if options.hasOpt("only"):
+                            if value in allValues:
+                                discard
+                            elif col == options.getOpt("only")[0]:
+                                allValues.incl(value)
+                                echo fmt"{value}"
+                                nItems += 1
+                        else:
+                            echo fmt"{col:<31} {value}"
+                            nItems += 1
+                if options.hasOpt("only"):
+                    discard
+                else:
+                    echo ""
             rowIndex += 1
             if options.hasOpt("first"):
                 break
@@ -728,7 +746,8 @@ when isMainModule:
                             makeIcon(fromFile, toFile)
                         else:
                             copyFile(fromFile, toFile)
-        
+        if options.hasOpt("enumerate"):
+            echo fmt"{nItems} results."
     if options.hasOpt("console"):
         echo "type 'quit' to quit.\n"
         while true:

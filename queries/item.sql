@@ -54,7 +54,7 @@ FROM
     localized
     
 WHERE
-    __column__ LIKE ? ESCAPE '\' -- adding this single quote to fix incorrect syntax highlighting: '
+    "__column__" LIKE ? ESCAPE '\' -- adding this single quote to fix incorrect syntax highlighting: '
 
     AND NOT EXISTS (
         SELECT 1
