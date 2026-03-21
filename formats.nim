@@ -1,5 +1,6 @@
 import tables
 
+# player save formats
 var saveFormat* = initTable[int, seq[string]]()
 
 saveFormat[22] = @[

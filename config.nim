@@ -68,7 +68,10 @@ proc expandEnv*(path: string): string =
         result = result.replace("__localappdata__", la) / ""
 
 proc getString*(cfg: Config, key: string): string =
-    cfg[key].expandEnv
+    if key in cfg:
+        cfg[key].expandEnv
+    else:
+        ""
 
 proc getString*(cfg: Config, key: string, default: string): string =
     if key in cfg:
@@ -77,13 +80,19 @@ proc getString*(cfg: Config, key: string, default: string): string =
         default.expandEnv
 
 proc get*(cfg: Config, key: string): string =
-    getString(cfg, key)
+    if key in cfg:
+        getString(cfg, key)
+    else:
+        ""
 
 proc get*(cfg: Config, key: string, default: string): string =
     getString(cfg, key, default)
 
 proc getInt*(cfg: Config, key: string): int =
-    parseInt(cfg[key])
+    if key in cfg:
+        parseInt(cfg[key])
+    else:
+        0
 
 proc getInt*(cfg: Config, key: string, default: int): int =
     if key in cfg:
@@ -92,7 +101,10 @@ proc getInt*(cfg: Config, key: string, default: int): int =
         default
 
 proc getBool*(cfg: Config, key: string): bool =
-    parseBool(cfg[key])
+    if key in cfg:
+        parseBool(cfg[key])
+    else:
+        false
 
 proc getBool*(cfg: Config, key: string, default: bool): bool =
     if key in cfg:

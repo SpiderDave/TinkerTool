@@ -10,10 +10,11 @@ import
     streams,
     sets,
     strformat,
-    Tables,
+    tables,
     std/wordwrap,
     json,
-    pixie
+    pixie,
+    libclip/clipboard
 
 import
     db_connector/db_sqlite # nimble install db_connector
@@ -23,20 +24,24 @@ import
     simpleopts,
     TinkerEdit,
     config,
-    formats,
-    jsonTools
+    playerSave,
+    replace
 
 #var language = "English"
 
 const app: App = App(
     name: "TinkerTool",
-    url: "",
+    url: "https://github.com/SpiderDave/TinkerTool",
     author: "SpiderDave",
     stage: "alpha",
     description: """
 A Tinkerlands multi tool.
 """
 )
+
+const recipeOverlayImageData = readFile("recipe overlay.png")
+
+var printOutput = ""
 
 var cfg = initConfig()
 const configFile = "tinkertool.ini"
@@ -48,7 +53,7 @@ cfg["languageFolder"] = "__programfilesx86__/Steam/steamapps/common/Tinkerlands/
 cfg["steamFolder"] = "__programfilesx86__/Steam/steamapps/common/Tinkerlands/"
 cfg["saveFolder"] = "__localappdata__/Tinkerlands/"
 cfg["spritesFolder"] = "C:/Tinkerlands/Modding/Tinkerlands ModTool/sprites/"
-#cfg["replace"] = "true"
+cfg["replace"] = "false"
 #cfg["debug"] = "true"
 
 #let start = getMonoTime()
@@ -351,72 +356,27 @@ proc makeIcon(fromFile, toFile: string) =
     image2.draw(image, translate(vec2(float(x), float(y))))
     image2.writeFile(toFile)
 
-proc extractPlayer(saveFile: string) =
-    createFolders("data" / "player")
+# force 16 px height for wiki icons and add recipe overlay
+proc makeRecipeIcon(fromFile, toFile: string) =
+    var image: Image
+    image = readImage(fromFile)
+    var recipeOverlayImage: Image = decodeImage(recipeOverlayImageData)
+    let x = 0
+    let y = floor(8 - image.height / 2)
+    var image2 = newImage(image.width, 16)
+    image2.draw(image, translate(vec2(float(x), float(y))))
+    image2.draw(recipeOverlayImage, translate(vec2(float(image.width + 1 - 7), float(8))))
+    image2.writeFile(toFile)
 
-    var index = 0
-    var version = 0
-    var useVersion = 0
-
-    echo fmt"reading {saveFile}"
-    
-    for line in lines(saveFile):
-        var str:string
-        var ext:string
-        if index == 0:
-            version = line.parseInt
-            useVersion = version
-            
-            # fall back to the closest version below the given
-            while not saveFormat.hasKey(useVersion):
-                dec useVersion
-                if useVersion <= 0:
-                    quit fmt"Could not process save version {version}."
-        
-        if saveFormat[useVersion][index] == "json":
-            str = prettyJson(line)
-            ext = "json"
-        elif saveFormat[useVersion][index] == "jstring":
-            str = unstringifyJsonString(line)
-            ext = "json"
-        elif saveFormat[useVersion][index] == "number":
-            str = line
-            ext = "txt"
-        
-        let filename = fmt"data/player/output.{index+1}.{ext}" / ""
-        
-        writeFile(filename, str)
-        echo fmt"wrote {filename}"
-        
-        inc index
-
-proc buildPlayer(saveFile: string) =
-    let version = readFile("data/player/output.1.txt").parseInt
-    var useVersion = version
-    
-    # fall back to the closest version below the given
-    while not saveFormat.hasKey(useVersion):
-        dec useVersion
-        if useVersion <= 0:
-            quit fmt"Could not process save version {version}."
-    
-    var index = 0
-    var lines: seq[string] = @[]
-    
-    for entry in saveFormat[useVersion]:
-        if saveFormat[useVersion][index] == "json":
-            lines.add minifyJson(readFile(fmt"data/player/output.{index+1}.json"))
-        elif saveFormat[useVersion][index] == "jstring":
-            lines.add stringifyJsonString(readFile(fmt"data/player/output.{index+1}.json"))
-        elif saveFormat[useVersion][index] == "number":
-            lines.add readFile(fmt"data/player/output.{index+1}.txt")
-        inc index
-        
-    lines.add ""
-    
-    writeFile(saveFile, lines.join("\r\n"))
-    echo fmt"wrote {saveFile}"
-
+# output like echo but captures to printOutput too
+proc print(args: varargs[string, `$`]) = 
+  for arg in args:
+    printOutput &= arg
+    stdout.write arg
+  stdout.write "\n"
+  stdout.flushFile()
+  printOutput &= "\n"
+  
 proc usage() = 
     echo app.info
     echo ""
@@ -433,12 +393,11 @@ proc usage() =
     echo "      -only <prop>                           Only show property/column <prop> as a simple list."
     echo "      -enumerate                             Display number of results."
     echo "      -language <language>                   Set language to <language>."
-#    echo "      -clip                                  Copy output to the clipboard."
-    echo "      -saveimages                            Copy and rename icon images. Category specific folders and names will"
-    echo "                                             be used."
-    echo "      -makeicon                              when used with -saveimages, forces item icons to be 16 px high (useful for"
+    echo "      -clip                                  Copy output to the clipboard."
+    echo "      -saveimages [icon|recipeicon]          Copy and rename icon images. Category specific folders and names will"
+    echo "                                             be used. If \"icon\" is used, icons will be 16 px high (useful for wiki)."
+    echo "                                             If \"recipeicon\" is used, icons will be 16 px high and add recipe overlay."
     echo "                                             wiki)."
-#    echo "      -makerecipeicon                        when used with -saveimages, adds recipe icon overlay."
     echo "      -backup                                Backup all worlds, players, user options, languages."
     echo "      -extractworld <file>                   Extract all files from a world save <file>."
     echo "      -extractworld <slot>                   Extract all files from a world save <slot>."
@@ -447,6 +406,8 @@ proc usage() =
     echo "      -extractplayer <slot>                  Extract all files from a player save <slot>."
     echo "      -buildplayer <file>                    Rebuild a player from files and save to <file>."
     echo "      -builddatabase                         Build database (tinkerlands.db). Takes a long time."
+    echo "      -output [<filename=output.txt>]        Write output to <filename>."
+    echo "      -clip                                  Copy output to the clipboard."
     echo "      -console                               Open sqlite console."
     echo "      -categories                            Show categories."
     echo "  -h, -help                                  Show this help."
@@ -485,7 +446,7 @@ when isMainModule:
         ]
         
         # wrap to 75 characters and indent 4 spaces
-        echo "    " & categories.join(", ").wrapWords(75).replace("\n", "\n    ")
+        print "    " & categories.join(", ").wrapWords(75).replace("\n", "\n    ")
         quit()
     
     if options.hasOpt("limit") and options.getOpt("limit").len == 0:
@@ -512,6 +473,7 @@ when isMainModule:
             if filename in ["1","2","3","4"]:
                 filename = cfg.get("saveFolder") / "players" / fmt"savegame0{filename}.player"
         
+        createFolders("data" / "player")
         extractPlayer(filename)
         quit()
     
@@ -585,6 +547,38 @@ when isMainModule:
                             copyFile(fromFile, toFile)
         quit()
     
+    if options.hasOpt("test") and cfg.getBool("debug"):
+        var p = loadPlayer("savegame01.player")
+#        for item in p.data:
+#            echo item
+#            echo "----------------------------------"
+        echo fmt"Version: {p.version}"
+        echo p["version"]
+        p.sortShopItems
+        
+#        p.data[2]["hpMax"] = % 50000
+        
+        p["maxHp"] = 500
+        
+        echo p["maxHp"].getInt
+        echo p.data[2]["hpMax"]
+        
+        echo "foo", "bar", "baz"
+        print "hello ", "world ", 42
+        print "foo", "bar", "baz"
+        
+        echo printOutput
+        
+    
+    if options.hasOpt("sortshopitems"):
+        let filename = "data/player/output.13.json"
+        var node = parseJson(readFile(filename))
+        
+        node.sortShopItems
+        
+        echo fmt"Sorted shop items in {filename}."
+        writeFile(filename, node.pretty)
+    
     # undocumented option used in release buildling
     if options.hasOpt("releasetag"):
         echo app.releaseTag
@@ -618,11 +612,11 @@ when isMainModule:
         let elapsed = getMonoTime() - start
         echo "Elapsed: ", elapsed.pretty
 
-    if options.hasOpt("test"):
-        db.execSqlFile("queries/blacklist.sql")
-
     if options.hasOpt("get"):
         let opt = options.getOpt("g", "get")
+        
+        var multiple = false
+        var searchList: seq[string]
         
         var cat = "item"
         var search = ""
@@ -633,6 +627,10 @@ when isMainModule:
             key = opt[1]
         if opt.len > 2:
             search = opt[2]
+        if opt.len > 3:
+            multiple = true
+            for item in opt[2..<opt.len]:
+                searchList.add(item)
         
         if search == "all":
             search = ""
@@ -654,6 +652,8 @@ when isMainModule:
             key = "ID"
             search = "%"
         
+        
+        
         var queryString: string
         
         if fileExists(fmt"queries/{cat}.sql"):
@@ -661,8 +661,15 @@ when isMainModule:
         else:
             queryString = readFile(fmt"queries/default.sql")
             queryString = queryString.replace("__category__", cat)
-            
+        
+        if multiple:
+            search = "(\"" & searchList.join("\",\"") & "\")"
+            queryString = queryString.replace(""""__column__" LIKE ? ESCAPE '\'""", fmt"__column__ in {search}")
+        
         queryString = queryString.replace("__column__", key)
+        
+#        echo queryString
+#        echo ""
 
         let query_getMobNameFromKey = readFile("queries/getMobNameFromKey.sql")
         
@@ -687,21 +694,31 @@ when isMainModule:
                         row["Name"] = row["Name"].replace("{$refMob}", rows[0]["Name"])
                 elif "%Name% the " in row["Name"]:
                     row["Name"] = row["Name"].replace("%Name% the ", "The ")
+                elif row["Name"] == "%Name% Cartographer":
+                    row["Name"] = "The Cartographer"
+            
+            # replace data
+            if cfg.getBool("replace") == true:
+                for (check, values) in replaceData.pairs:
+                    if check[0].toLowerAscii == cat and row.hasKey(check[1]) and row[check[1]] == check[2]:
+                        for item in values:
+                            if row.hasKey(item[0]):
+                                row[item[0]] = item[1]
             
             if options.hasOpt("list"):
                 if row.hasKey("Name") and row.hasKey("ID"):
-                    echo fmt"""{row["ID"]} {row["Name"]}"""
+                    print fmt"""{row["ID"]} {row["Name"]}"""
                 elif row.hasKey("Key") and row.hasKey("ID"):
-                    echo fmt"""{row["ID"]} {row["Key"]}"""
+                    print fmt"""{row["ID"]} {row["Key"]}"""
             else:
                 if row.hasKey("Name") and row.hasKey("ID"):
-                    echo "----------------------------------------"
-                    echo fmt"""{row["ID"]} {row["Name"]}"""
-                    echo "----------------------------------------"
+                    print "----------------------------------------"
+                    print fmt"""{row["ID"]} {row["Name"]}"""
+                    print "----------------------------------------"
                 elif row.hasKey("Key") and row.hasKey("ID"):
-                    echo "----------------------------------------"
-                    echo fmt"""{row["ID"]} {row["Key"]}"""
-                    echo "----------------------------------------"
+                    print "----------------------------------------"
+                    print fmt"""{row["ID"]} {row["Key"]}"""
+                    print "----------------------------------------"
                 
                 for col, value in row.pairs:
                     if value == "":
@@ -714,10 +731,10 @@ when isMainModule:
                                 discard
                             elif col == options.getOpt("only")[0]:
                                 allValues.incl(value)
-                                echo fmt"{value}"
+                                print fmt"{value}"
                                 nItems += 1
                         else:
-                            echo fmt"{col:<31} {value}"
+                            print fmt"{col:<31} {value}"
                             nItems += 1
                 if options.hasOpt("only"):
                     discard
@@ -732,24 +749,34 @@ when isMainModule:
                     break
             
             if options.hasOpt("saveimages"):
+                let opt = options.getOpt("saveimages")
                 if row.hasKey("Icon"):
                     let fromFile = getSpriteFile(row["Icon"])
                     if fromFile != "":
                         var toFile: string
+                        var name: string
                         
                         if row.hasKey("Name"):
-                            toFile = "output" / cat / row["Name"] & "_icon.png"
+                            name = row["Name"]
                         else:
-                            toFile = "output" / cat / row["Key"] & "_icon.png"
+                            name = row["key"]
+                        
+                        toFile = fmt"output/{cat}/{name}.png" / ""
                         
                         createFolders("output" / cat)
-                        
-                        if options.hasOpt("makeicon"):
-                            makeIcon(fromFile, toFile)
+                        if opt.len > 0:
+                            if opt[0] == "icon":
+                                toFile = fmt"output/{cat}/{name}_icon.png" / ""
+                                makeIcon(fromFile, toFile)
+                            elif opt[0] == "recipeicon":
+                                toFile = fmt"output/{cat}/{name} (Recipe)_icon.png" / ""
+                                makeRecipeIcon(fromFile, toFile)
                         else:
                             copyFile(fromFile, toFile)
+        
         if options.hasOpt("enumerate"):
-            echo fmt"{nItems} results."
+            print fmt"{nItems} results."
+    
     if options.hasOpt("console"):
         echo "type 'quit' to quit.\n"
         
@@ -908,4 +935,17 @@ when isMainModule:
                 else:
                     prompt = "     -> "
             
+    if options.hasOpt("clip"):
+        discard setClipboardText($printOutput)
+    
+    if options.hasOpt("output"):
+        let opt = options.getOpt("output")
+        
+        let filename = block:
+            if opt.len == 0: "output.txt"
+            else: opt[0] / ""
+        
+        writeFile(filename, printOutput)
+        echo fmt"Output written to {filename}."
+    
     db.close()

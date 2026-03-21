@@ -171,6 +171,8 @@ INSERT INTO blacklist VALUES ('item', 1692); -- Dynamo Key
 INSERT INTO blacklist VALUES ('item', 1693); -- Energy Lasso
 INSERT INTO blacklist VALUES ('item', 1694); -- Rigged Dice
 
+INSERT INTO blacklist VALUES ('item', 1854); -- Crab Map
+
 INSERT INTO blacklist VALUES ('item', 1893); -- Day Phoenix Egg
 INSERT INTO blacklist VALUES ('item', 1894); -- Night Phoenix Egg
 INSERT INTO blacklist VALUES ('item', 1900); -- Day Phoenix's Soul
