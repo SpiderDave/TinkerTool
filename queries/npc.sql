@@ -1,6 +1,6 @@
 -- Create a single-row CTE that holds the language parameter.
 WITH lang(value) AS (
-    SELECT ?
+    SELECT "__language__"
 ),
 
 -- Build a localized projection of the item table
@@ -9,7 +9,8 @@ localized AS (
         npc.*, -- include ALL original columns
 
         -- Add localized variants with unique names
-        COALESCE(NULLIF(en_name.text, ''), npc.name) AS Name_localized
+        COALESCE(NULLIF(en_name.text, ''), npc.name) AS Name_localized,
+        COALESCE(NULLIF(en_first_dialogue.text, ''), npc.'First Dialogue') AS "First Dialogue_localized"
 
     FROM npc
 
@@ -21,19 +22,24 @@ localized AS (
         ON en_name.key = npc.name
        AND en_name.lang = lang.value COLLATE NOCASE
 
+    LEFT JOIN translations AS en_first_dialogue
+        ON en_first_dialogue.key = npc.'First Dialogue'
+       AND en_first_dialogue.lang = lang.value COLLATE NOCASE
 )
 
 -- Final selection with localized search
 SELECT
     *,
     name_localized AS Name,
-    name as Name_unlocalized
+    localized.'First Dialogue_localized' AS "First Dialogue",
+    name as Name_unlocalized,
+    localized.'First Dialogue' as "First Dialogue_unlocalized"
 
 FROM
     localized
     
 WHERE
-    "__column__" LIKE ? ESCAPE '\' -- adding this single quote to fix incorrect syntax highlighting: '
+    __where__
 
     AND NOT EXISTS (
         SELECT 1

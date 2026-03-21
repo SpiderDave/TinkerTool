@@ -37,9 +37,6 @@ let replaceData* = {
     ("mob", "ID", "49"): @[
         ("Name", "Orc Archer 1")
     ],
-#    ("mob", "ID", "50"): @[
-#        ("Name", "Crab")
-#    ],
     ("mob", "ID", "51"): @[
         ("Name", "Orc Archer 2")
     ],

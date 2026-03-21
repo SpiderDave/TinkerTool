@@ -1,6 +1,6 @@
 -- Create a single-row CTE that holds the language parameter.
 WITH lang(value) AS (
-    SELECT ?
+    SELECT "__language__"
 ),
 
 -- Build a localized projection of the item table
@@ -32,7 +32,7 @@ FROM
     localized
     
 WHERE
-    "__column__" LIKE ? ESCAPE '\' -- adding this single quote to fix incorrect syntax highlighting: '
+    __where__
 
     AND NOT EXISTS (
         SELECT 1

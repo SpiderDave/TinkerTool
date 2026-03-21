@@ -1,25 +1,26 @@
 import
-    resource/resource,
-    os,
+    std/os,
     std/dirs,
     std/times,
     std/monotimes,
     std/rdstdin,
     std/parsecsv,
-    strutils,
-    streams,
-    sets,
-    strformat,
-    tables,
     std/wordwrap,
-    json,
-    pixie,
-    libclip/clipboard
+    std/json,
+    std/strutils,
+    std/sequtils,
+    std/strformat,
+    std/streams,
+    std/sets,
+    std/tables
 
 import
-    db_connector/db_sqlite # nimble install db_connector
+    pixie,                  # nimble install pixie
+    libclip/clipboard,      # nimble install nimclipboard
+    db_connector/db_sqlite  # nimble install db_connector
 
 import
+    resource/resource,
     appinfo,
     simpleopts,
     TinkerEdit,
@@ -36,7 +37,7 @@ const app: App = App(
     stage: "alpha",
     description: """
 A Tinkerlands multi tool.
-"""
+""".strip
 )
 
 const recipeOverlayImageData = readFile("recipe overlay.png")
@@ -329,6 +330,12 @@ proc getAllRowsAsTables(db: DbConn, q: SqlQuery, args: varargs[string]): seq[Ord
 proc get*(db: DbConn, q: SqlQuery, args: varargs[string]): seq[OrderedTable[string,string]] =
     getAllRowsAsTables(db, q, args)
 
+proc getFirstValid(row: OrderedTable[system.string, system.string], args: varargs[string]): string =
+    for arg in args:
+        if row.hasKey(arg):
+            return row[arg]
+    return ""
+
 proc getSpriteFile(spriteName: string):string =
     let spriteFile = cfg.get("spritesFolder") / spriteName / fmt"{spriteName}.yy"
     
@@ -376,12 +383,15 @@ proc print(args: varargs[string, `$`]) =
   stdout.write "\n"
   stdout.flushFile()
   printOutput &= "\n"
-  
-proc usage() = 
+
+proc defaultAppOutput() =
     echo app.info
-    echo ""
     echo app.description
     echo ""
+    echo fmt"Type {app.name} -h or -help for help."
+    echo ""
+
+proc usage() = 
     echo "Usage: ", app.name, " [opts]"
     echo ""
     echo "Options:"
@@ -392,7 +402,8 @@ proc usage() =
     echo "      -limit <limit>                         Limit results to the <limit> results."
     echo "      -only <prop>                           Only show property/column <prop> as a simple list."
     echo "      -enumerate                             Display number of results."
-    echo "      -language <language>                   Set language to <language>."
+    echo "      -language <language>                   Set language to <language>. Supports full names and codes."
+    echo "                                             There are also shorter convenience options like -spanish or -zhcn."
     echo "      -clip                                  Copy output to the clipboard."
     echo "      -saveimages [icon|recipeicon]          Copy and rename icon images. Category specific folders and names will"
     echo "                                             be used. If \"icon\" is used, icons will be 16 px high (useful for wiki)."
@@ -412,9 +423,14 @@ proc usage() =
     echo "      -categories                            Show categories."
     echo "  -h, -help                                  Show this help."
     echo ""
-#    echo "Examples:"
-#    echo "    ", app.name, " -b"
-#    echo ""
+    echo "Examples:"
+    echo fmt"    {app.name} -get item blazon"
+    echo fmt"    {app.name} -get item type head body legs"
+    echo fmt"    {app.name} -backup"
+    echo fmt"    {app.name} -get item name Cangrejo -list -saveimages icon -language Spanish"
+    echo fmt"    {app.name} -get item name crab -only name -output crab_items.txt"
+    
+    echo ""
     quit()
 
 when isMainModule:
@@ -429,9 +445,15 @@ when isMainModule:
     let options = simpleopts.parseOpts()
     
     if options.hasOpt("h", "help"):
+        defaultAppOutput()
         usage()
+    
+    if options.hasOpt("usage"): # undocumented; shows usage without default output
+        usage()
+    
     if options.empty:
-        usage()
+        defaultAppOutput()
+        quit()
     
     # required parameter sanity check
     if options.hasOpt("only") and options.getOpt("only").len == 0:
@@ -568,7 +590,70 @@ when isMainModule:
         print "foo", "bar", "baz"
         
         echo printOutput
+    if options.hasOpt("test2"):
         
+        proc expandItems(itemString: string): JsonNode =
+            let t = %* []
+            for item in itemString.split("],["):
+                var item = item
+                var cat = ""
+                
+                item = item.replace("[","").replace("]","")
+                item = item.split(",")[0]
+                
+                if "E_ITEMS." in item:
+                    cat = "item"
+                elif "E_ITEM_POOLS." in item:
+                    cat = "item_pool"
+                elif "E_RECIPES." in item:
+                    cat = "recipe"
+                
+                item = item.replace("E_ITEMS.","")
+                item = item.replace("E_ITEM_POOLS.","")
+                item = item.replace("E_RECIPES.","")
+                
+                var node = %* {
+                  "cat": cat,
+                  "Key": item,
+                }
+                
+#                if cat = "item_pool":
+#                    node["pool"] = expandItems()
+                
+                t.add(node)
+            
+            return t
+            
+        var txt = options.getOpt("test2")[0]
+        let t = expandItems(txt)
+        
+#            Item Pool, Loot, Soul Loot, Loot Hard Difficulty
+#                key, chance, min, max, db folder
+#            Mob Pool Day, Mob Pool Night
+#                key, chance
+#            Fish, Fish Chests
+#                key, chance
+#            Shop
+#                key, db folder
+#            Recipe
+#                key, amount
+#            Likes, Dislikes
+#                key
+            
+#            var node = %* {
+#              "key": item,
+#              "cat": cat,
+#              "books": [
+#                "Robot Dreams"
+#              ],
+#              "details": {
+#                "age": 35,
+#                "pi": 3.1415
+#              }
+#            }
+            
+        echo t.pretty
+        echo type(t)
     
     if options.hasOpt("sortshopitems"):
         let filename = "data/player/output.13.json"
@@ -615,9 +700,7 @@ when isMainModule:
     if options.hasOpt("get"):
         let opt = options.getOpt("g", "get")
         
-        var multiple = false
         var searchList: seq[string]
-        
         var cat = "item"
         var search = ""
         var key = "all"
@@ -626,14 +709,9 @@ when isMainModule:
         if opt.len > 1:
             key = opt[1]
         if opt.len > 2:
-            search = opt[2]
-        if opt.len > 3:
-            multiple = true
             for item in opt[2..<opt.len]:
                 searchList.add(item)
         
-        if search == "all":
-            search = ""
         if key == "name":
             key = "name_localized"
         if key == "description":
@@ -641,18 +719,24 @@ when isMainModule:
         if key == "gender":
             key = "gender_localized"
         
-        search = search.replace("%", fmt"\%")
+        # format search string
+        # ^ match start of string
+        # $ match end of string
+        # * match multiple characters
+        # _ match any character
+        proc formatSearch(search: var string) =
+            if search == "all":
+                search = ""
+            search = search.replace("%", fmt"\%")
+            if options.hasOpt("exact") == false and "*" notin search and search.len > 0:
+                if search.startsWith("^"): search = search[1..<search.len]
+                else: search = "*" & search
+                
+                if search.endsWith("$"): search = search[0..^2]
+                else: search = search & "*"
+            search = search.replace("*", "%")
         
-        if options.hasOpt("exact") == false and "*" notin search and search.len > 0:
-            search = "*" & search & "*"
-        
-        search = search.replace("*", "%")
-        
-        if key == "all":
-            key = "ID"
-            search = "%"
-        
-        
+        search.formatSearch
         
         var queryString: string
         
@@ -662,22 +746,56 @@ when isMainModule:
             queryString = readFile(fmt"queries/default.sql")
             queryString = queryString.replace("__category__", cat)
         
-        if multiple:
-            search = "(\"" & searchList.join("\",\"") & "\")"
-            queryString = queryString.replace(""""__column__" LIKE ? ESCAPE '\'""", fmt"__column__ in {search}")
-        
-        queryString = queryString.replace("__column__", key)
-        
-#        echo queryString
-#        echo ""
+        if key == "all":
+            queryString = queryString.replace("__where__", "TRUE")
+        else:
+            # WHERE "colname" LIKE "%foo%" OR ...
+            var str = ""
+            for i in 0..<searchList.len:
+                var search = searchList[i]
+                search.formatSearch
 
+                if i > 0:
+                    str &= "    OR\n    "
+                str &= fmt""""__column__" LIKE "{search}" ESCAPE '\' --'"""
+                str &= "\n"
+                
+            queryString = queryString.replace("__where__", str)
+        
         let query_getMobNameFromKey = readFile("queries/getMobNameFromKey.sql")
         
         var language = cfg.get("language")
         if options.hasOpt("language"):
             language = options.getOpt("language")[0]
         
-        var rows = db.get(queryString.sql, language, search)
+        let languages = @[
+          @["Chinese_Simplified", "chinese", "zhcn", "zhhans", "zh"],
+          @["Chinese_Traditional", "zhtw", "zhhant"],
+          @["English", "en"],
+          @["French", "fr"],
+          @["German", "de"],
+          @["Japanese", "ja"],
+          @["Korean", "ko"],
+          @["Portuguese", "pt"],
+          @["Russian", "ru"],
+          @["Spanish", "es"]
+        ]
+        
+        for entry in languages:
+            for variant in entry:
+                if options.hasOpt("language") and options.getOpt("language").len > 0:
+                    if options.getOpt("language")[0].toLowerAscii == variant.toLowerAscii:
+                        language = entry[0]
+                elif options.hasOpt(variant.toLowerAscii):
+                    language = entry[0]
+        
+        queryString = queryString.replace("__language__", language)
+        queryString = queryString.replace("__column__", key)
+        
+        if options.hasOpt("showquery"):
+            print queryString
+        
+        var rows = db.get(queryString.sql)
         
         # used to track duplicates for -only option
         var allValues: HashSet[string]
@@ -704,14 +822,18 @@ when isMainModule:
                         for item in values:
                             if row.hasKey(item[0]):
                                 row[item[0]] = item[1]
-            
             if options.hasOpt("list"):
                 if row.hasKey("Name") and row.hasKey("ID"):
                     print fmt"""{row["ID"]} {row["Name"]}"""
                 elif row.hasKey("Key") and row.hasKey("ID"):
                     print fmt"""{row["ID"]} {row["Key"]}"""
+                else:
+                    let values = toSeq(row.values)[0].join(", ")
+                    print fmt"""{values}"""
             else:
-                if row.hasKey("Name") and row.hasKey("ID"):
+                if options.hasOpt("only"):
+                    discard
+                elif row.hasKey("Name") and row.hasKey("ID"):
                     print "----------------------------------------"
                     print fmt"""{row["ID"]} {row["Name"]}"""
                     print "----------------------------------------"
@@ -729,7 +851,7 @@ when isMainModule:
                         if options.hasOpt("only"):
                             if value in allValues:
                                 discard
-                            elif col == options.getOpt("only")[0]:
+                            elif col.toLowerAscii == options.getOpt("only")[0].toLowerAscii:
                                 allValues.incl(value)
                                 print fmt"{value}"
                                 nItems += 1
@@ -750,16 +872,14 @@ when isMainModule:
             
             if options.hasOpt("saveimages"):
                 let opt = options.getOpt("saveimages")
-                if row.hasKey("Icon"):
-                    let fromFile = getSpriteFile(row["Icon"])
+                # todo: also check "Sprite", "Sprite Idle" etc
+                
+                let imageKey = row.getFirstValid("Icon", "Sprite", "Sprite Idle")
+                if imageKey != "":
+                    let fromFile = getSpriteFile(imageKey)
                     if fromFile != "":
                         var toFile: string
-                        var name: string
-                        
-                        if row.hasKey("Name"):
-                            name = row["Name"]
-                        else:
-                            name = row["key"]
+                        var name = row.getFirstValid("Name", "Key", "ID")
                         
                         toFile = fmt"output/{cat}/{name}.png" / ""
                         
@@ -778,163 +898,8 @@ when isMainModule:
             print fmt"{nItems} results."
     
     if options.hasOpt("console"):
-        echo "type 'quit' to quit.\n"
-        
-        var text = ""
-        var prompt = "sqlite> "
-        
-        proc showHelp() = 
-            echo "List of sqlite console commands:"
-            echo "Note that all text commands must end with ';'"
-            echo "?         (\\?) Display this help."
-            echo "          (\\c)  Clear the current input statement."
-            echo "help      (\\h)  Display this help."
-            echo "          (\\p)  Print current command."
-            echo "quit      (\\q)  Quit sqlite console."
-            echo ""
-        
-        echo "Commands end with ;."
-        echo "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input statement."
-        echo ""
-        
-        block mainConsoleLoop:
-            while true:
-                var input = readLineFromStdin(prompt)
-                var stmt: string
-                
-                var cmd = ""
-                if input.startsWith("\\"):
-                    cmd = input.split("\\",1)[1].strip
-                
-                # These commands are single line and not added to the sql statements.
-                if cmd == "q":
-                    break
-                elif cmd == "h" or cmd == "?":
-                    showHelp()
-                elif cmd == "c":
-                    text = ""
-                elif cmd == "p":
-                    echo text
-                elif cmd == "":
-                    text &= input & "\n"
-                else:
-                    echo fmt"Unknown command '\{cmd}'."
-                
-                while ";" in text:
-                    stmt = text.split(';', 1)[0].strip
-                    text = text.split(';', 1)[1]
-                    
-                    let stmtL = stmt.toLowerAscii
-                    
-                    if stmtL == "show tables":
-                        stmt = """SELECT name FROM sqlite_master WHERE type ='table' AND name NOT LIKE 'sqlite_%';"""
-                    if stmtL == "show databases" or stmtL == "show database":
-                        stmt = "PRAGMA database_list;"
-                    if stmtL.startsWith("describe "):
-                        stmt = "PRAGMA table_info(" & stmt.split(" ",1)[1].strip & ")"
-                    if stmtL.startsWith("show create table "):
-                        let name = stmt.split(" ", 3)[3].strip
-                        stmt = "SELECT sql FROM sqlite_master WHERE type='table' AND name='" & name & "'"
-                    if stmtL.startsWith("show indexes from "):
-                        let name = stmt.split(" ", 3)[3].strip
-                        stmt = "PRAGMA index_list(" & name & ")"
-                    if stmtL.startsWith("show columns from "):
-                        let name = stmt.split(" ", 3)[3].strip
-                        stmt = "SELECT name FROM pragma_table_info(" & name & ")"
-                    if stmtL == "show schema":
-                        stmt = "SELECT sql FROM sqlite_master WHERE sql NOT NULL"
-                    if stmtL.startsWith("show schema "):
-                        let name = stmt.split(" ", 2)[2].strip
-                        stmt = "SELECT sql FROM sqlite_master WHERE name='" & name & "'"
-                    if stmtL == "show views":
-                        stmt = "SELECT name FROM sqlite_master WHERE type='view'"
-                    if stmtL.startsWith("show foreign keys from "):
-                        let name = stmt.split(" ", 4)[4].strip
-                        stmt = "PRAGMA foreign_key_list(" & name & ")"
-                    
-                    if stmtL == "quit":
-                        break mainConsoleLoop
-                    elif stmtL == "help":
-                        showHelp()
-                    elif stmt != "":
-                        var maxWidth:seq[int]
-                        
-                        var hadError = false
-                        
-                        let rows = block:
-                            try:
-                                db.getAllRowsWithColumns(stmt.sql)
-                            except DbError as e:
-                                hadError = true
-                                if e.msg.startsWith("near "):
-                                    echo "ERROR ", e.msg
-                                else:
-                                    echo "ERROR: ", e.msg
-                                @[]
-                        
-                        if not hadError:
-                            if rows.len > 0:
-                                for c in rows[0]:
-                                    maxWidth.add(0)
-                                
-                                for row in rows:
-                                    var i = 0
-                                    for c in row:
-                                        if c.len > maxWidth[i]:
-                                            maxWidth[i] = c.len
-                                        i += 1
-                                
-                                var output: string
-                                
-                                var hDivider = "+"
-                                for i in 0..<rows[0].len:
-                                    hDivider &= "-".repeat(maxWidth[i] + 2) & "+"
-                                echo hDivider;
-                                
-                                # column names
-                                output = "|"
-                                for i in 0..<rows[0].len:
-                                    let value = $rows[0][i]
-                                    output &= " " & value & " ".repeat(maxWidth[i] - value.len) & " |"
-                                echo output;
-                                
-                                if rows.len > 1:
-                                    echo hDivider
-                                
-                                var rowNum = 0
-                                for row in rows:
-                                    output = "|"
-                                    if rowNum > 0:
-                                        for i in 0..<row.len:
-                                            let value = $row[i]
-                                            output &= " " & value & " ".repeat(maxWidth[i] - value.len) & " |"
-                                        echo output
-                                    rowNum += 1
-                                
-                                echo hDivider
-                                
-                                if rows.len - 1 == 0:
-                                    echo fmt"Empty set"
-                                    echo rows[0]
-                                elif rows.len - 1 == 1:
-                                    echo fmt"{rows.len - 1} row in set"
-                                else:
-                                    echo fmt"{rows.len - 1} rows in set"
-                                echo ""
-                            else:
-                                let count = db.getAllRows(sql"SELECT changes()")[0][0].parseInt
-                                if count == 0:
-                                    echo "Query OK"
-                                elif count == 1:
-                                    echo "Query OK, 1 row affected"
-                                else:
-                                    echo fmt"Query OK, {count} rows affected"
-                            
-                if text.strip == "":
-                    prompt = "sqlite> "
-                else:
-                    prompt = "     -> "
-            
+        include console
+    
     if options.hasOpt("clip"):
         discard setClipboardText($printOutput)
     

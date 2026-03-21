@@ -1,4 +1,3 @@
--- ? <-- this is just to consume the unused language parameter
 SELECT
     *
 
@@ -6,7 +5,7 @@ FROM
     __category__
     
 WHERE
-    __column__ LIKE ? ESCAPE '\' -- adding this single quote to fix incorrect syntax highlighting: '
+    __where__
 
     AND NOT EXISTS (
         SELECT 1

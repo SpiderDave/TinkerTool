@@ -1,5 +1,5 @@
 WITH lang(value) AS (
-    SELECT ?
+    SELECT "__language__"
 ),
 
 -- Collect all item/fish/biome references
@@ -47,7 +47,8 @@ LEFT JOIN translations AS en_biome_name
   ON en_biome_name.key = b.name
  AND en_biome_name.lang = lang.value COLLATE NOCASE
 
-WHERE "__column__" LIKE ? ESCAPE '\' -- adding this single quote to fix incorrect syntax highlighting: '
+WHERE 
+  __where__
 
   AND NOT EXISTS (
       SELECT 1
