@@ -206,6 +206,20 @@ let replaceData* = {
         ("Name", "Tribe's Soul 3")
     ],
     
+    ("item", "ID", "1834"): @[
+        ("Name", "Day Grass Floor 1")
+    ],
+    ("item", "ID", "1835"): @[
+        ("Name", "Night Grass Floor 1")
+    ],
+    
+    ("item", "ID", "1843"): @[
+        ("Name", "Day Grass Floor 2")
+    ],
+    ("item", "ID", "1845"): @[
+        ("Name", "Night Grass Floor 2")
+    ],
+    
     ("item", "ID", "1951"): @[
         ("Name", "Day Flowerpot (Yellow)")
     ],

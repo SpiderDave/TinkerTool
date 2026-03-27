@@ -12,7 +12,8 @@ import
     std/strformat,
     std/streams,
     std/sets,
-    std/tables
+    std/tables,
+    std/macros
 
 import
     pixie,                  # nimble install pixie
@@ -26,9 +27,10 @@ import
     TinkerEdit,
     config,
     playerSave,
-    replace
+    replace,
+    templates
 
-#var language = "English"
+var language = "English"
 
 const app: App = App(
     name: "TinkerTool",
@@ -391,6 +393,255 @@ proc defaultAppOutput() =
     echo fmt"Type {app.name} -h or -help for help."
     echo ""
 
+proc getLanguage(options: Opts):string =
+    var language = cfg.get("language")
+    if options.hasOpt("language"):
+        language = options.getOpt("language")[0]
+    
+    let languages = @[
+      @["Chinese_Simplified", "chinese", "zhcn", "zhhans", "zh"],
+      @["Chinese_Traditional", "zhtw", "zhhant"],
+      @["English", "en"],
+      @["French", "fr"],
+      @["German", "de"],
+      @["Japanese", "ja"],
+      @["Korean", "ko"],
+      @["Portuguese", "pt"],
+      @["Russian", "ru"],
+      @["Spanish", "es"]
+    ]
+    
+    for entry in languages:
+        for variant in entry:
+            if options.hasOpt("language") and options.getOpt("language").len > 0:
+                if options.getOpt("language")[0].toLowerAscii == variant.toLowerAscii:
+                    language = entry[0]
+            elif options.hasOpt(variant.toLowerAscii):
+                language = entry[0]
+    return language
+
+proc applyReplaceData(rows: var seq[OrderedTable[system.string, system.string]], cat: string) =
+    if cfg.getBool("replace") != true:
+        return
+
+    # replace data
+    for row in mitems(rows):
+        for (check, values) in replaceData.pairs:
+            if check[0].toLowerAscii == cat and row.hasKey(check[1]) and row[check[1]] == check[2]:
+                for item in values:
+                    if row.hasKey(item[0]):
+                        row[item[0]] = item[1]
+
+        if cat == "npc" and row.hasKey("Name"):
+            row["Name"] = row["Name"].replace("%Name% the ","The ")
+            row["Name"] = row["Name"].replace("%Name% Cartographer","Cartographer")
+
+
+
+# Expand item list to a Json Node
+# This version does not use the database.
+#proc expandItems(itemString: string): JsonNode =
+#    let t = %* []
+#    for entry in itemString.split("],["):
+#        var cat = ""
+#        var items = entry.replace("[","").replace("]","").split(",")
+#        var key = items[0]
+        
+#        if key.startsWith("E_"):
+#            cat = key.split("E_")[1].split("S.")[0].toLowerAscii
+#            key = key.split(".")[1]
+        
+#        var node = %* {
+#            "cat": % cat,
+#            "key": % key,
+#            "items": % items,
+#        }
+#        t.add(node)
+#    return t
+
+# Expand item list to a Json Node
+# Uses database to fill data
+proc expandItems(db: DbConn, itemString: string): JsonNode =
+    let t = %* []
+    let t2 = %* []
+    var categories: seq[string]
+    for entry in itemString.split("],["):
+        var cat = ""
+        var items = entry.replace("[","").replace("]","").split(",")
+        var key = items[0]
+        
+        if key.startsWith("E_"):
+            cat = key.split("E_")[1].split("S.")[0].toLowerAscii
+            key = key.split(".")[1]
+        
+        var node = %* {
+            "cat": cat,
+            "key": key
+        }
+        t.add(node)
+        if cat notin categories:
+            categories.add(cat)
+    
+    var where = ""
+    for cat in categories:
+        var keys: seq[string]
+        for item in t:
+            if $item["cat"].getStr == cat:
+                keys.add(item["key"].getStr)
+        where &= "    key IN (" & '"' & keys.join("""", """") & '"' & ")\n"
+        
+        # run a query once per category
+        var queryString: string
+        if fileExists(fmt"queries/{cat}.sql"):
+            queryString = readFile(fmt"queries/{cat}.sql")
+        else:
+            queryString = readFile(fmt"queries/default.sql")
+            queryString = queryString.replace("__category__", cat)
+        queryString = queryString.replace("__language__", language)
+        queryString = queryString.replace("__where__", where)
+        
+        var rows = db.get(queryString.sql)
+        
+        rows.applyReplaceData(cat)
+        
+        for row in rows:
+            if row["Key"] in keys:
+                for item in t:
+                    if row["Key"] == item["key"].getStr:
+                        item["data"] = % row
+                        t2.add(% row)
+#    echo where
+    
+#    let query_getMobNameFromKey = readFile("queries/getMobNameFromKey.sql")
+#    queryString = queryString.replace("__column__", key)
+    
+    return t2
+
+# Expand multiple item lists in a given Json Node
+# Example:
+#   db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required")
+proc expandItems(db: DbConn, jObj: JsonNode, keys: varargs[string]) =
+    for key in keys:
+        if jObj.hasKey(key):
+            jObj[key & "_unexpanded"] = jObj[key]
+            jObj[key] = db.expandItems(jObj[key].getStr)
+
+proc getData(db: DbConn, cat, key, value: string): JsonNode =
+    let t = %* []
+    let where = fmt"""    "{key}" = "{value}""""
+    
+    var queryString: string
+    if fileExists(fmt"queries/{cat}.sql"):
+        queryString = readFile(fmt"queries/{cat}.sql")
+    else:
+        queryString = readFile(fmt"queries/default.sql")
+        queryString = queryString.replace("__category__", cat)
+    queryString = queryString.replace("__language__", language)
+    queryString = queryString.replace("__where__", where)
+    
+    var rows = db.get(queryString.sql)
+    
+    rows.applyReplaceData(cat)
+    
+    for row in rows:
+        var node = %* {}
+        for col, value in row.pairs:
+            node[col] = % $value
+        t.add(node)
+    return t
+
+#proc removeLinesStartingWith(input, prefix: string): string =
+#    result = input
+#        .splitLines()
+#        .filterIt(not it.startsWith(prefix))
+#        .join("\n")
+
+#proc normalizeLines(s: string, newline = "\n"): string =
+#    s.splitLines().join(newline)
+
+#proc extractIdentifiers(input: string): seq[string] =
+#    var resultSeq: seq[string] = @[]
+
+#    for line in input.splitLines():
+#        var start = 0
+
+#        while true:
+#            let openPos = line.find("__", start)
+#            if openPos < 0: break
+
+#            let closePos = line.find("__", openPos + 2)
+#            if closePos < 0: break
+
+#            let identifier = line[openPos + 2 ..< closePos]
+#            resultSeq.add(identifier)
+
+#            start = closePos + 2
+
+#    return resultSeq
+
+
+# format search string
+# ^ match start of string
+# $ match end of string
+# * match multiple characters
+# _ match any character
+proc formatSearch(search: var string, exact = false) =
+    if search == "all":
+        search = ""
+    search = search.replace("%", fmt"\%")
+    if exact == false and "*" notin search and search.len > 0:
+        if search.startsWith("^"): search = search[1..<search.len]
+        else: search = "*" & search
+        
+        if search.endsWith("$"): search = search[0..^2]
+        else: search = search & "*"
+    search = search.replace("*", "%")
+
+#proc isDecimal(s: string): bool =
+#    if s.len == 0:
+#        return false
+
+#    var chars: set[char]
+#    for c in s:
+#        chars.incl c
+
+#    return chars <= {'0'..'9'}
+
+#proc eat(text: var string, c: string): string =
+#    if c notin text:
+#        result = text
+#        text = ""
+#        return
+#    else:
+#        result = text.split(c, 1)[0]
+#        text = text.split(c, 1)[1]
+#        return
+
+#[
+# variant with max replace
+proc replace(s, sub, by: string, maxRepl: int): string =
+    if maxRepl <= 0 or sub.len == 0:
+        return s
+
+    var start = 0
+    var count = 0
+    var res = ""
+
+    while true:
+        let i = s.find(sub, start)
+        if i < 0 or count >= maxRepl:
+            res.add s[start..^1]
+            break
+
+        res.add s[start..<i]
+        res.add by
+
+        start = i + sub.len
+        inc count
+
+    result = res
+#]#
+
 proc usage() = 
     echo "Usage: ", app.name, " [opts]"
     echo ""
@@ -434,7 +685,6 @@ proc usage() =
     quit()
 
 when isMainModule:
-    
     # load config
     cfg.load(configFile)
     
@@ -443,6 +693,8 @@ when isMainModule:
     cfg.save(configFile)
     
     let options = simpleopts.parseOpts()
+    
+    language = getLanguage(options)
     
     if options.hasOpt("h", "help"):
         defaultAppOutput()
@@ -590,70 +842,6 @@ when isMainModule:
         print "foo", "bar", "baz"
         
         echo printOutput
-    if options.hasOpt("test2"):
-        
-        proc expandItems(itemString: string): JsonNode =
-            let t = %* []
-            for item in itemString.split("],["):
-                var item = item
-                var cat = ""
-                
-                item = item.replace("[","").replace("]","")
-                item = item.split(",")[0]
-                
-                if "E_ITEMS." in item:
-                    cat = "item"
-                elif "E_ITEM_POOLS." in item:
-                    cat = "item_pool"
-                elif "E_RECIPES." in item:
-                    cat = "recipe"
-                
-                item = item.replace("E_ITEMS.","")
-                item = item.replace("E_ITEM_POOLS.","")
-                item = item.replace("E_RECIPES.","")
-                
-                var node = %* {
-                  "cat": cat,
-                  "Key": item,
-                }
-                
-#                if cat = "item_pool":
-#                    node["pool"] = expandItems()
-                
-                t.add(node)
-            
-            return t
-            
-        var txt = options.getOpt("test2")[0]
-        let t = expandItems(txt)
-        
-#            Item Pool, Loot, Soul Loot, Loot Hard Difficulty
-#                key, chance, min, max, db folder
-#            Mob Pool Day, Mob Pool Night
-#                key, chance
-#            Fish, Fish Chests
-#                key, chance
-#            Shop
-#                key, db folder
-#            Recipe
-#                key, amount
-#            Likes, Dislikes
-#                key
-            
-#            var node = %* {
-#              "key": item,
-#              "cat": cat,
-#              "books": [
-#                "Robot Dreams"
-#              ],
-#              "details": {
-#                "age": 35,
-#                "pi": 3.1415
-#              }
-#            }
-            
-        echo t.pretty
-        echo type(t)
     
     if options.hasOpt("sortshopitems"):
         let filename = "data/player/output.13.json"
@@ -681,6 +869,96 @@ when isMainModule:
     
     let db = open(cfg.get("dbFile"), "", "", "")
     
+    if options.hasOpt("test3"):
+        let t = db.getData("item", "Key", "accesory_teeth")[0]
+        echo t
+        echo "done."
+        
+        for k,v in pairs(t):
+            print fmt"{k:<31}__{k}__"
+    
+    if options.hasOpt("test2"):
+        
+        let t = db.getData("npc", "Key", "blacksmith")[0]
+#        let t = db.getData("item", "Key", "accesory_legendary_blazon")[0]
+        
+        db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet", "Equipped Armor", "Equipped Legs")
+        
+        # expand furniture to get the item instead of interactable
+        if t.hasKey("Furniture Required"):
+            for item in t["Furniture Required"]:
+                db.expandItems(item, "Item")
+        
+#        echo t.pretty
+#        var text = readFile(fmt"templates/npc_text.txt").normalizeLines
+#        var text = readFile(fmt"templates/generic.txt").normalizeLines
+        var text = loadTemplate("npc_text")
+        var node = t
+        
+        resolveTemplate(text, node)
+        
+        #[
+        var node = t
+        resolveChainSimple(text, node)
+        
+        for identifier in text.extractIdentifiers:
+            var chain = identifier
+            if chain.startsWith("i.") or chain.startsWith("iterate:") or chain.startsWith("end iterate"):
+                discard
+            else:
+                resolveChain(text, node, chain)
+        
+        for identifier in text.extractIdentifiers:
+            if identifier.startsWith("iterate:"):
+                let iterField = identifier.split(":")[1]
+                var sep = ""
+                if identifier.split(":").len > 2:
+                    # separater parameter; ex:
+                    #   __iterate:Likes:, __
+                    sep = identifier.split(":")[2]
+                var iterText = text.split("__" & identifier & "__")[1].split(fmt"__end iterate__")[0]
+                let originalIterText = iterText
+                var newIterText = ""
+                
+                # iterate shop items etc
+                var i = 0
+                for item in t[iterField]:
+                    var itemText = iterText
+                    
+                    # iterate the identifiers like __i.Name__
+                    for iterId in iterText.extractIdentifiers:
+                        var itemCurrent = item
+                        var iterIdCopy = iterId
+                        let opt = %* {"i":  i}
+                        resolveChain(itemText, itemCurrent, iterIdCopy, opt)
+
+                        if iterId == "once":
+                            iterText = iterText.removeLinesStartingWith("__once__")
+                            itemText = itemText.replace("__once__", "")
+                            
+                    if i < t[iterField].len - 1:
+                        itemText &= sep
+                    
+                    newIterText &= itemText
+                    i += 1
+                
+                text = text.replace("__" & identifier & "__" & originalIterText & "__end iterate__", newIterText)
+        #]#
+        print text
+        
+#            Item Pool, Loot, Soul Loot, Loot Hard Difficulty
+#                key, chance, min, max, db folder
+#            Mob Pool Day, Mob Pool Night
+#                key, chance
+#            Fish, Fish Chests
+#                key, chance
+#            Shop
+#                key, db folder
+#            Recipe
+#                key, amount
+#            Likes, Dislikes, Buff List
+#                key
+    
     if options.hasOpt("builddatabase"):
         let start = getMonoTime()
         echo "Building tinkerlands.db..."
@@ -705,10 +983,13 @@ when isMainModule:
         var search = ""
         var key = "all"
         if opt.len > 0:
+            # category
             cat = opt[0]
         if opt.len > 1:
+            # key/column
             key = opt[1]
         if opt.len > 2:
+            # search term(s)
             for item in opt[2..<opt.len]:
                 searchList.add(item)
         
@@ -719,24 +1000,8 @@ when isMainModule:
         if key == "gender":
             key = "gender_localized"
         
-        # format search string
-        # ^ match start of string
-        # $ match end of string
-        # * match multiple characters
-        # _ match any character
-        proc formatSearch(search: var string) =
-            if search == "all":
-                search = ""
-            search = search.replace("%", fmt"\%")
-            if options.hasOpt("exact") == false and "*" notin search and search.len > 0:
-                if search.startsWith("^"): search = search[1..<search.len]
-                else: search = "*" & search
-                
-                if search.endsWith("$"): search = search[0..^2]
-                else: search = search & "*"
-            search = search.replace("*", "%")
-        
-        search.formatSearch
+        # apply and convert wildcards to search string
+        search.formatSearch(options.hasOpt("exact"))
         
         var queryString: string
         
@@ -763,31 +1028,6 @@ when isMainModule:
             queryString = queryString.replace("__where__", str)
         
         let query_getMobNameFromKey = readFile("queries/getMobNameFromKey.sql")
-        
-        var language = cfg.get("language")
-        if options.hasOpt("language"):
-            language = options.getOpt("language")[0]
-        
-        let languages = @[
-          @["Chinese_Simplified", "chinese", "zhcn", "zhhans", "zh"],
-          @["Chinese_Traditional", "zhtw", "zhhant"],
-          @["English", "en"],
-          @["French", "fr"],
-          @["German", "de"],
-          @["Japanese", "ja"],
-          @["Korean", "ko"],
-          @["Portuguese", "pt"],
-          @["Russian", "ru"],
-          @["Spanish", "es"]
-        ]
-        
-        for entry in languages:
-            for variant in entry:
-                if options.hasOpt("language") and options.getOpt("language").len > 0:
-                    if options.getOpt("language")[0].toLowerAscii == variant.toLowerAscii:
-                        language = entry[0]
-                elif options.hasOpt(variant.toLowerAscii):
-                    language = entry[0]
         
         queryString = queryString.replace("__language__", language)
         queryString = queryString.replace("__column__", key)
@@ -816,12 +1056,8 @@ when isMainModule:
                     row["Name"] = "The Cartographer"
             
             # replace data
-            if cfg.getBool("replace") == true:
-                for (check, values) in replaceData.pairs:
-                    if check[0].toLowerAscii == cat and row.hasKey(check[1]) and row[check[1]] == check[2]:
-                        for item in values:
-                            if row.hasKey(item[0]):
-                                row[item[0]] = item[1]
+            rows.applyReplaceData(cat)
+            
             if options.hasOpt("list"):
                 if row.hasKey("Name") and row.hasKey("ID"):
                     print fmt"""{row["ID"]} {row["Name"]}"""

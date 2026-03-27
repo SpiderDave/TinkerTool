@@ -1,0 +1,57 @@
+==================================================
+__Name__
+==================================================
+
+Type: NPC, Merchant
+Location: Main Island
+
+----------------------------------------
+Quote
+----------------------------------------
+
+"__First Dialogue__"
+    --__Name__
+
+----------------------------------------
+Housing Requirements
+----------------------------------------
+__iterate:Furniture Required__
+- __i.Item.Name____end iterate__
+
+----------------------------------------
+Likes
+----------------------------------------
+__iterate:Likes__
+- __i.Name____end iterate__
+
+----------------------------------------
+Dislikes
+----------------------------------------
+__iterate:Dislikes__
+- __i.Name____end iterate__
+
+----------------------------------------
+Shop
+----------------------------------------
+
++----------------------+--------------------------------+----------------------+
+| Item                 | Cost                           | Availability         |
++----------------------+--------------------------------+----------------------+__iterate:Shop__
+| __i.Name.pad:20__ | __i.Sell.money.pad:30__ | __i.text:Always Available.once.pad:20__ |__end iterate__
++----------------------+--------------------------------+----------------------+
+
+----------------------------------------
+Template tests:
+----------------------------------------
+__iterate:Equipped Helmet____i.Name____end iterate__
+__iterate:Equipped Armor____i.Name____end iterate__
+__iterate:Equipped Legs____i.Name____end iterate__
+
+__Equipped Helmet.Name__
+
+__iterate:Dislikes__ __Name__ __end iterate__
+
+__coalesce:ID:__ __coalesce:Name:Key__ __coalesce:Description:(No description)__
+
+
+

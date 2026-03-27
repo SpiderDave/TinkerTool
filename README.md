@@ -13,8 +13,8 @@ TinkerTool is a command line tool for use with TinkerLands.
 2. Download the Mod Tool and Database Images from https://tinkerlands.com/docs/#/README
 3. Extract the Mod Tool to a folder.
 4. Extract the sprites to the Mod Tool folder. Inside the Mod Tool folder you should now have a "db" folder and a "sprites" folder.
-5. Run TinkerTool once (For now you can just click it and have it close but we'll explain how to use it on the command line later). This will create the tinkerlands.ini file.
-6. Edit the tinkerlands.ini. Here we set up various options for the program.
+5. Run TinkerTool once (For now you can just click it and have it close but we'll explain how to use it on the command line later). This will create the tinkertool.ini file.
+6. Edit the tinkertool.ini. Here we set up various options for the program.
 7. Set "dbFolder" to the location of the "db" folder inside the Mod Tool's folder.
 8. Set "spritesFolder" to the location of the "sprites" folder inside the Mod Tool's folder.
 9. Run "CMD Prompt Here.cmd" found in TinkerTool's folder.

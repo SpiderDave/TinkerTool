@@ -1,0 +1,28 @@
+{{NPC Infobox
+  | title=__Name__
+  | image=__Name__.png
+  | caption-image=__Name__.
+  | type=[[NPC]], [[Merchant]]
+  | environment={{island|name=Main Island}}
+  | requirements=__iterate:Furniture Required:<br>__{{item|name=__i.Item.0.Name__}}__end iterate__
+  | likes=__iterate:Likes:<br>__{{item|name=__i.Name__}}__end iterate__
+  | dislikes=__iterate:Dislikes:<br>__{{item|name=__i.Name__}}__end iterate__
+}}
+{{npcquote
+  |text=__First Dialogue__
+  |speaker=__Name__
+}}
+{{npc|name=__Name__}} is an NPC.
+{{clear}}
+==Shop==
+{| class="shop"
+|-
+! Merchant !! Item !! Cost !! Availability__iterate:Shop__
+|-
+__once__| rowspan="__Shop.length__" | {{npc|name=__Name__}}
+| {{item|name=__i.Name__}} || {{money|__i.Sell.money__}}
+__once__| rowspan="__Shop.length__" | Always Available__end iterate__
+|}
+
+[[category:npc]]
+[[category:merchant]]
