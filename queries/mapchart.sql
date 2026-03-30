@@ -9,7 +9,7 @@ localized AS (
         mapchart.*, -- include ALL original columns
 
         -- Add localized variants with unique names
-        COALESCE(NULLIF(en_desc.text, ''), mapchart.description) AS Description_localized
+        COALESCE(en_replacename.name, NULLIF(en_desc.text, ''), mapchart.description) AS Description_localized
 
     FROM mapchart
 
@@ -20,6 +20,11 @@ localized AS (
     LEFT JOIN translations AS en_desc
         ON en_desc.key = mapchart.description
        AND en_desc.lang = lang.value COLLATE NOCASE
+
+    -- Join replacelist for name
+    LEFT JOIN replacelist AS en_replacename
+        ON en_replacename.category = "mapchart"
+       AND en_replacename.id = mapchart.id
 
 )
 

@@ -9,7 +9,7 @@ localized AS (
         npc.*, -- include ALL original columns
 
         -- Add localized variants with unique names
-        COALESCE(NULLIF(en_name.text, ''), npc.name) AS Name_localized,
+        COALESCE(en_replacename.name, NULLIF(en_name.text, ''), npc.name) AS Name_localized,
         COALESCE(NULLIF(en_first_dialogue.text, ''), npc.'First Dialogue') AS "First Dialogue_localized"
 
     FROM npc
@@ -21,6 +21,11 @@ localized AS (
     LEFT JOIN translations AS en_name
         ON en_name.key = npc.name
        AND en_name.lang = lang.value COLLATE NOCASE
+
+    -- Join replacelist for name
+    LEFT JOIN replacelist AS en_replacename
+        ON en_replacename.category = "npc"
+       AND en_replacename.id = npc.id
 
     LEFT JOIN translations AS en_first_dialogue
         ON en_first_dialogue.key = npc.'First Dialogue'

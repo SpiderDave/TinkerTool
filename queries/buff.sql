@@ -9,7 +9,7 @@ localized AS (
         buff.*, -- include ALL original columns
 
         -- Add localized variants with unique names
-        COALESCE(NULLIF(en_desc.text, ''), buff.description) AS Description_localized
+        COALESCE(en_replacename.name, NULLIF(en_desc.text, ''), buff.description) AS Description_localized
 
     FROM buff
 
@@ -20,6 +20,11 @@ localized AS (
     LEFT JOIN translations AS en_desc
         ON en_desc.key = buff.description
        AND en_desc.lang = lang.value COLLATE NOCASE
+    
+    -- Join replacelist for name
+    LEFT JOIN replacelist AS en_replacename
+        ON en_replacename.category = "buff"
+       AND en_replacename.id = buff.id
 )
 
 -- Final selection with localized search

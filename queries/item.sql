@@ -9,7 +9,7 @@ localized AS (
         item.*, -- include ALL original columns
 
         -- Add localized variants with unique names
-        COALESCE(NULLIF(en_name.text, ''), item.name) AS Name_localized,
+        COALESCE(en_replacename.name, NULLIF(en_name.text, ''), item.name) AS Name_localized,
         COALESCE(NULLIF(en_desc.text, ''), item.description) AS Description_localized,
         COALESCE(NULLIF(en_gender.text, ''), item.gender) AS Gender_localized,
         COALESCE(NULLIF(en_setdesc.text, ''), item.'set description') AS "Set Description_localized"
@@ -23,6 +23,11 @@ localized AS (
     LEFT JOIN translations AS en_name
         ON en_name.key = item.name
        AND en_name.lang = lang.value COLLATE NOCASE
+
+    -- Join replacelist for name
+    LEFT JOIN replacelist AS en_replacename
+        ON en_replacename.category = "item"
+       AND en_replacename.id = item.id
 
     -- Join translation for description
     LEFT JOIN translations AS en_desc

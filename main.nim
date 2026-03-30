@@ -15,6 +15,9 @@ import
     std/tables,
     std/macros
 
+# statically compile sqlite3
+#{.compile: "./lib/sqlite/sqlite3.c".}  # relative to main.nim
+
 import
     pixie,                  # nimble install pixie
     libclip/clipboard,      # nimble install nimclipboard
@@ -27,7 +30,6 @@ import
     TinkerEdit,
     config,
     playerSave,
-    replace,
     templates
 
 var language = "English"
@@ -66,6 +68,15 @@ cfg["replace"] = "false"
 #echo getEnv("programfiles(x86)")
 #echo getEnv("programfiles")
 
+proc isDecimal(s: string): bool =
+    if s.len == 0:
+        return false
+
+    var chars: set[char]
+    for c in s:
+        chars.incl c
+
+    return chars <= {'0'..'9'}
 
 iterator reverse[T](a: seq[T]): T {.inline.} =
     var i = len(a) - 1
@@ -336,10 +347,22 @@ proc getFirstValid(row: OrderedTable[system.string, system.string], args: vararg
     for arg in args:
         if row.hasKey(arg):
             return row[arg]
+        if row.hasKey(arg.capitalizeAscii()):
+            return row[arg.capitalizeAscii()]
     return ""
 
 proc getSpriteFile(spriteName: string):string =
-    let spriteFile = cfg.get("spritesFolder") / spriteName / fmt"{spriteName}.yy"
+    if spriteName == "":
+        return ""
+    
+    var spriteFile = cfg.get("spritesFolder") / spriteName / fmt"{spriteName}.yy"
+    
+    if not fileExists(spriteFile):
+        spriteFile = cfg.get("spritesFolder") / spriteName / fmt"{spriteName}_0.png"
+        if fileExists(spriteFile):
+            return spriteFile
+        else:
+            return ""
     
     if not fileExists(spriteFile):
         return ""
@@ -348,7 +371,7 @@ proc getSpriteFile(spriteName: string):string =
     var name = $jsonNode["frames"][0]["%Name"]
     name = name.replace(""""""", "")
     
-    let pngFile = cfg.get("spritesFolder") / spriteName / fmt"{name}.png"
+    var pngFile = cfg.get("spritesFolder") / spriteName / fmt"{name}.png"
     
     if not fileExists(pngFile):
         return ""
@@ -356,14 +379,14 @@ proc getSpriteFile(spriteName: string):string =
         return pngFile
 
 # force 16 px height for wiki icons
-proc makeIcon(fromFile, toFile: string) =
-    var image: Image
-    image = readImage(fromFile)
-    let x = 0
-    let y = floor(8 - image.height / 2)
-    var image2 = newImage(image.width, 16)
-    image2.draw(image, translate(vec2(float(x), float(y))))
-    image2.writeFile(toFile)
+#proc makeIcon(fromFile, toFile: string) =
+#    var image: Image
+#    image = readImage(fromFile)
+#    let x = 0
+#    let y = floor(8 - image.height / 2)
+#    var image2 = newImage(image.width, 16)
+#    image2.draw(image, translate(vec2(float(x), float(y))))
+#    image2.writeFile(toFile)
 
 # force 16 px height for wiki icons and add recipe overlay
 proc makeRecipeIcon(fromFile, toFile: string) =
@@ -375,6 +398,18 @@ proc makeRecipeIcon(fromFile, toFile: string) =
     var image2 = newImage(image.width, 16)
     image2.draw(image, translate(vec2(float(x), float(y))))
     image2.draw(recipeOverlayImage, translate(vec2(float(image.width + 1 - 7), float(8))))
+    image2.writeFile(toFile)
+
+# adjust width and height
+proc makeImage(fromFile, toFile: string, w, h: var int) =
+    var image: Image
+    image = readImage(fromFile)
+    if w == 0: w = image.width
+    if h == 0: h = image.height
+    let x = floor(w / 2 - image.width / 2)
+    let y = floor(h / 2 - image.height / 2)
+    var image2 = newImage(w, h)
+    image2.draw(image, translate(vec2(float(x), float(y))))
     image2.writeFile(toFile)
 
 # output like echo but captures to printOutput too
@@ -419,24 +454,6 @@ proc getLanguage(options: Opts):string =
             elif options.hasOpt(variant.toLowerAscii):
                 language = entry[0]
     return language
-
-proc applyReplaceData(rows: var seq[OrderedTable[system.string, system.string]], cat: string) =
-    if cfg.getBool("replace") != true:
-        return
-
-    # replace data
-    for row in mitems(rows):
-        for (check, values) in replaceData.pairs:
-            if check[0].toLowerAscii == cat and row.hasKey(check[1]) and row[check[1]] == check[2]:
-                for item in values:
-                    if row.hasKey(item[0]):
-                        row[item[0]] = item[1]
-
-        if cat == "npc" and row.hasKey("Name"):
-            row["Name"] = row["Name"].replace("%Name% the ","The ")
-            row["Name"] = row["Name"].replace("%Name% Cartographer","Cartographer")
-
-
 
 # Expand item list to a Json Node
 # This version does not use the database.
@@ -500,9 +517,10 @@ proc expandItems(db: DbConn, itemString: string): JsonNode =
         queryString = queryString.replace("__language__", language)
         queryString = queryString.replace("__where__", where)
         
-        var rows = db.get(queryString.sql)
+        if cfg.getBool("replace") == false:
+            queryString = queryString.replace("COALESCE(en_replacename.name, ", "COALESCE(")
         
-        rows.applyReplaceData(cat)
+        var rows = db.get(queryString.sql)
         
         for row in rows:
             if row["Key"] in keys:
@@ -539,9 +557,10 @@ proc getData(db: DbConn, cat, key, value: string): JsonNode =
     queryString = queryString.replace("__language__", language)
     queryString = queryString.replace("__where__", where)
     
-    var rows = db.get(queryString.sql)
+    if cfg.getBool("replace") == false:
+        queryString = queryString.replace("COALESCE(en_replacename.name, ", "COALESCE(")
     
-    rows.applyReplaceData(cat)
+    var rows = db.get(queryString.sql)
     
     for row in rows:
         var node = %* {}
@@ -549,36 +568,6 @@ proc getData(db: DbConn, cat, key, value: string): JsonNode =
             node[col] = % $value
         t.add(node)
     return t
-
-#proc removeLinesStartingWith(input, prefix: string): string =
-#    result = input
-#        .splitLines()
-#        .filterIt(not it.startsWith(prefix))
-#        .join("\n")
-
-#proc normalizeLines(s: string, newline = "\n"): string =
-#    s.splitLines().join(newline)
-
-#proc extractIdentifiers(input: string): seq[string] =
-#    var resultSeq: seq[string] = @[]
-
-#    for line in input.splitLines():
-#        var start = 0
-
-#        while true:
-#            let openPos = line.find("__", start)
-#            if openPos < 0: break
-
-#            let closePos = line.find("__", openPos + 2)
-#            if closePos < 0: break
-
-#            let identifier = line[openPos + 2 ..< closePos]
-#            resultSeq.add(identifier)
-
-#            start = closePos + 2
-
-#    return resultSeq
-
 
 # format search string
 # ^ match start of string
@@ -596,26 +585,6 @@ proc formatSearch(search: var string, exact = false) =
         if search.endsWith("$"): search = search[0..^2]
         else: search = search & "*"
     search = search.replace("*", "%")
-
-#proc isDecimal(s: string): bool =
-#    if s.len == 0:
-#        return false
-
-#    var chars: set[char]
-#    for c in s:
-#        chars.incl c
-
-#    return chars <= {'0'..'9'}
-
-#proc eat(text: var string, c: string): string =
-#    if c notin text:
-#        result = text
-#        text = ""
-#        return
-#    else:
-#        result = text.split(c, 1)[0]
-#        text = text.split(c, 1)[1]
-#        return
 
 #[
 # variant with max replace
@@ -656,9 +625,10 @@ proc usage() =
     echo "      -language <language>                   Set language to <language>. Supports full names and codes."
     echo "                                             There are also shorter convenience options like -spanish or -zhcn."
     echo "      -clip                                  Copy output to the clipboard."
-    echo "      -saveimages [icon|recipeicon]          Copy and rename icon images. Category specific folders and names will"
-    echo "                                             be used. If \"icon\" is used, icons will be 16 px high (useful for wiki)."
-    echo "                                             If \"recipeicon\" is used, icons will be 16 px high and add recipe overlay."
+    echo "      -saveimages [wikiicon|recipeicon]      Copy and rename icon images. Category specific folders and names will"
+    echo "                                             be used. If \"wikiicon\" is used, icons will be 16 px high (useful for"
+    echo "                                             wiki). If \"recipeicon\" is used, icons will be 16 px high and add recipe"
+    echo "                                             overlay."
     echo "                                             wiki)."
     echo "      -backup                                Backup all worlds, players, user options, languages."
     echo "      -extractworld <file>                   Extract all files from a world save <file>."
@@ -678,7 +648,7 @@ proc usage() =
     echo fmt"    {app.name} -get item blazon"
     echo fmt"    {app.name} -get item type head body legs"
     echo fmt"    {app.name} -backup"
-    echo fmt"    {app.name} -get item name Cangrejo -list -saveimages icon -language Spanish"
+    echo fmt"    {app.name} -get item name Cangrejo -list -saveimages wikiicon -language Spanish"
     echo fmt"    {app.name} -get item name crab -only name -output crab_items.txt"
     
     echo ""
@@ -890,60 +860,12 @@ when isMainModule:
                 db.expandItems(item, "Item")
         
 #        echo t.pretty
-#        var text = readFile(fmt"templates/npc_text.txt").normalizeLines
-#        var text = readFile(fmt"templates/generic.txt").normalizeLines
-        var text = loadTemplate("npc_text")
+#        var text = loadTemplate("npc_text")
+        var text = loadTemplate("npc_wiki")
         var node = t
         
         resolveTemplate(text, node)
         
-        #[
-        var node = t
-        resolveChainSimple(text, node)
-        
-        for identifier in text.extractIdentifiers:
-            var chain = identifier
-            if chain.startsWith("i.") or chain.startsWith("iterate:") or chain.startsWith("end iterate"):
-                discard
-            else:
-                resolveChain(text, node, chain)
-        
-        for identifier in text.extractIdentifiers:
-            if identifier.startsWith("iterate:"):
-                let iterField = identifier.split(":")[1]
-                var sep = ""
-                if identifier.split(":").len > 2:
-                    # separater parameter; ex:
-                    #   __iterate:Likes:, __
-                    sep = identifier.split(":")[2]
-                var iterText = text.split("__" & identifier & "__")[1].split(fmt"__end iterate__")[0]
-                let originalIterText = iterText
-                var newIterText = ""
-                
-                # iterate shop items etc
-                var i = 0
-                for item in t[iterField]:
-                    var itemText = iterText
-                    
-                    # iterate the identifiers like __i.Name__
-                    for iterId in iterText.extractIdentifiers:
-                        var itemCurrent = item
-                        var iterIdCopy = iterId
-                        let opt = %* {"i":  i}
-                        resolveChain(itemText, itemCurrent, iterIdCopy, opt)
-
-                        if iterId == "once":
-                            iterText = iterText.removeLinesStartingWith("__once__")
-                            itemText = itemText.replace("__once__", "")
-                            
-                    if i < t[iterField].len - 1:
-                        itemText &= sep
-                    
-                    newIterText &= itemText
-                    i += 1
-                
-                text = text.replace("__" & identifier & "__" & originalIterText & "__end iterate__", newIterText)
-        #]#
         print text
         
 #            Item Pool, Loot, Soul Loot, Loot Hard Difficulty
@@ -1011,6 +933,9 @@ when isMainModule:
             queryString = readFile(fmt"queries/default.sql")
             queryString = queryString.replace("__category__", cat)
         
+        if cfg.getBool("replace") == false:
+            queryString = queryString.replace("COALESCE(en_replacename.name, ", "COALESCE(")
+        
         if key == "all":
             queryString = queryString.replace("__where__", "TRUE")
         else:
@@ -1050,13 +975,6 @@ when isMainModule:
                     let rows = db.get(query_getMobNameFromKey.sql, row["Ref Mob"].replace("E_MOBS.", ""))
                     if rows.len > 0:
                         row["Name"] = row["Name"].replace("{$refMob}", rows[0]["Name"])
-                elif "%Name% the " in row["Name"]:
-                    row["Name"] = row["Name"].replace("%Name% the ", "The ")
-                elif row["Name"] == "%Name% Cartographer":
-                    row["Name"] = "The Cartographer"
-            
-            # replace data
-            rows.applyReplaceData(cat)
             
             if options.hasOpt("list"):
                 if row.hasKey("Name") and row.hasKey("ID"):
@@ -1110,25 +1028,52 @@ when isMainModule:
                 let opt = options.getOpt("saveimages")
                 # todo: also check "Sprite", "Sprite Idle" etc
                 
-                let imageKey = row.getFirstValid("Icon", "Sprite", "Sprite Idle")
-                if imageKey != "":
-                    let fromFile = getSpriteFile(imageKey)
-                    if fromFile != "":
-                        var toFile: string
-                        var name = row.getFirstValid("Name", "Key", "ID")
-                        
-                        toFile = fmt"output/{cat}/{name}.png" / ""
-                        
-                        createFolders("output" / cat)
-                        if opt.len > 0:
-                            if opt[0] == "icon":
-                                toFile = fmt"output/{cat}/{name}_icon.png" / ""
-                                makeIcon(fromFile, toFile)
-                            elif opt[0] == "recipeicon":
-                                toFile = fmt"output/{cat}/{name} (Recipe)_icon.png" / ""
-                                makeRecipeIcon(fromFile, toFile)
-                        else:
+                var imageKey = ""
+                var format = ""
+                var w = 0
+                var h = 0
+                
+                for o in opt:
+                    if o.split("x").len == 2 and o != "x":
+                        if o.split("x")[0].isDecimal:
+                            w = o.split("x")[0].parseInt
+                        if o.split("x")[1].isDecimal:
+                            h = o.split("x")[1].parseInt
+                    
+                    elif o == "wikiicon":
+                        format = o
+                    elif o == "wikiiconrecipe":
+                        format = o
+                    else:
+                        imageKey = o
+                
+                imageKey = row.getFirstValid(imageKey, "Icon", "Sprite", "Sprite Idle")
+                let fromFile = getSpriteFile(imageKey)
+                
+                if fromFile != "":
+                    var toFile: string
+                    var name = row.getFirstValid("Name", "Key", "ID")
+                    
+                    toFile = fmt"output/{cat}/{name}.png" / ""
+                    
+                    createFolders("output" / cat)
+                    
+                    if format == "wikiicon":
+                        toFile = fmt"output/{cat}/{name}_icon.png" / ""
+                        h = 16
+                    elif format == "wikiiconrecipe":
+                        toFile = fmt"output/{cat}/{name} (Recipe)_icon.png" / ""
+                    else:
+                        toFile = fmt"output/{cat}/{name}_{cat.toLowerAscii}.png" / ""
+                    
+                    # output
+                    if format == "wikiiconrecipe":
+                        makeRecipeIcon(fromFile, toFile)
+                    else:
+                        if w == 0 and h == 0:
                             copyFile(fromFile, toFile)
+                        else:
+                            makeImage(fromFile, toFile, w, h)
         
         if options.hasOpt("enumerate"):
             print fmt"{nItems} results."

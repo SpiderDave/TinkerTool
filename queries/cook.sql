@@ -9,7 +9,7 @@ localized AS (
         cook.*, -- include ALL original columns
 
         -- Add localized variants with unique names
-        COALESCE(NULLIF(en_name.text, ''), cook.name) AS Name_localized
+        COALESCE(en_replacename.name, NULLIF(en_name.text, ''), cook.name) AS Name_localized
 
     FROM cook
 
@@ -20,6 +20,11 @@ localized AS (
     LEFT JOIN translations AS en_name
         ON en_name.key = cook.name
        AND en_name.lang = lang.value COLLATE NOCASE
+
+    -- Join replacelist for name
+    LEFT JOIN replacelist AS en_replacename
+        ON en_replacename.category = "cook"
+       AND en_replacename.id = cook.id
 
 )
 

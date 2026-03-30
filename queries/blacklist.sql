@@ -55,6 +55,11 @@ INSERT INTO blacklist VALUES ('item', 365); -- Null (magic_scroll_sun)
 INSERT INTO blacklist VALUES ('item', 379); -- Eye Patch
 INSERT INTO blacklist VALUES ('item', 391); -- Sulfur
 INSERT INTO blacklist VALUES ('item', 426); -- Coral Wall (wall_coral) - icon looks blood red
+
+INSERT INTO blacklist VALUES ('item', 432); -- Witch Hat (unused black outfit)
+INSERT INTO blacklist VALUES ('item', 433); -- Witch Coat (unused black outfit)
+INSERT INTO blacklist VALUES ('item', 434); -- Witch Skirt (unused black outfit)
+
 INSERT INTO blacklist VALUES ('item', 437); -- Ghostbuster
 INSERT INTO blacklist VALUES ('item', 441); -- Wind Sail
 INSERT INTO blacklist VALUES ('item', 443); -- Geode Pendant
@@ -83,7 +88,6 @@ INSERT INTO blacklist VALUES ('item', 563); -- Moon Chest
 INSERT INTO blacklist VALUES ('item', 567); -- Lock
 INSERT INTO blacklist VALUES ('item', 568); -- Coin Gun
 INSERT INTO blacklist VALUES ('item', 569); -- Keyblade
-INSERT INTO blacklist VALUES ('item', 570); -- Fire Staff
 INSERT INTO blacklist VALUES ('item', 581); -- Enhanced Propulsion
 INSERT INTO blacklist VALUES ('item', 582); -- Magic Key
 INSERT INTO blacklist VALUES ('item', 583); -- Credit Card

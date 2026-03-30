@@ -4,7 +4,7 @@
   | caption-image=__Name__.
   | type=[[NPC]], [[Merchant]]
   | environment={{island|name=Main Island}}
-  | requirements=__iterate:Furniture Required:<br>__{{item|name=__i.Item.0.Name__}}__end iterate__
+  | requirements=__iterate:Furniture Required:<br>__{{item|name=__i.Item.Name__}}__end iterate__
   | likes=__iterate:Likes:<br>__{{item|name=__i.Name__}}__end iterate__
   | dislikes=__iterate:Dislikes:<br>__{{item|name=__i.Name__}}__end iterate__
 }}

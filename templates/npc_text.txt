@@ -39,19 +39,21 @@ Shop
 +----------------------+--------------------------------+----------------------+__iterate:Shop__
 | __i.Name.pad:20__ | __i.Sell.money.pad:30__ | __i.text:Always Available.once.pad:20__ |__end iterate__
 +----------------------+--------------------------------+----------------------+
+__eof__ <-- marks the end of file so everything after it is ignored.
+
+
 
 ----------------------------------------
 Template tests:
 ----------------------------------------
-__iterate:Equipped Helmet____i.Name____end iterate__
-__iterate:Equipped Armor____i.Name____end iterate__
-__iterate:Equipped Legs____i.Name____end iterate__
-
 __Equipped Helmet.Name__
+__Equipped Armor.Name__
+__Equipped Legs.Name__
 
-__iterate:Dislikes__ __Name__ __end iterate__
+==================================================
+__coalesce:ID.pad:>4__ __coalesce:Name:Key__ __coalesce:Type:__
+==================================================
 
-__coalesce:ID:__ __coalesce:Name:Key__ __coalesce:Description:(No description)__
-
-
+__comment:for i:in:First Dialogue__
+__comment:for i:in:0..5__
 

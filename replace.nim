@@ -1,229 +1,91 @@
 import tables
 
 let replaceData* = {
-    ("mob", "ID", "2"): @[
-        ("Name", "Swamp Thing 1")
-    ],
-    ("mob", "ID", "18"): @[
-        ("Name", "NPC Base")
-    ],
-    ("mob", "ID", "29"): @[
-        ("Name", "Merman 1")
-    ],
-    ("mob", "ID", "30"): @[
-        ("Name", "Merman 2")
-    ],
-    ("mob", "ID", "31"): @[
-        ("Name", "Merman 3")
-    ],
-    ("mob", "ID", "32"): @[
-        ("Name", "Swamp Thing 2")
-    ],
-    ("mob", "ID", "33"): @[
-        ("Name", "Swamp Thing 3")
-    ],
-    ("mob", "ID", "34"): @[
-        ("Name", "Blood Thing 1")
-    ],
-    ("mob", "ID", "35"): @[
-        ("Name", "Blood Thing 2")
-    ],
-    ("mob", "ID", "36"): @[
-        ("Name", "Blood Thing 3")
-    ],
-    ("mob", "ID", "39"): @[
-        ("Name", "Pirate Skeleton 1")
-    ],
-    ("mob", "ID", "49"): @[
-        ("Name", "Orc Archer 1")
-    ],
-    ("mob", "ID", "51"): @[
-        ("Name", "Orc Archer 2")
-    ],
-    ("mob", "ID", "92"): @[
-        ("Name", "Sarcophagus")
-    ],
-    ("mob", "ID", "93"): @[
-        ("Name", "Ghoul (Second Part)")
-    ],
-    ("mob", "ID", "95"): @[
-        ("Name", "Octopus 1")
-    ],
-    ("mob", "ID", "96"): @[
-        ("Name", "Octopus 2")
-    ],
-    ("mob", "ID", "101"): @[
-        ("Name", "Fish 1")
-    ],
-    ("mob", "ID", "102"): @[
-        ("Name", "Fish 2")
-    ],
-    ("mob", "ID", "103"): @[
-        ("Name", "Fish 3")
-    ],
-    ("mob", "ID", "104"): @[
-        ("Name", "Fish 4")
-    ],
-    ("mob", "ID", "105"): @[
-        ("Name", "Fish 5")
-    ],
-    ("mob", "ID", "106"): @[
-        ("Name", "Fish 6")
-    ],
-    ("mob", "ID", "107"): @[
-        ("Name", "Fish 7")
-    ],
-    ("mob", "ID", "123"): @[
-        ("Name", "Spikeball Trap")
-    ],
-    ("mob", "ID", "164"): @[
-        ("Name", "Merman 4")
-    ],
-    ("mob", "ID", "165"): @[
-        ("Name", "Merman 5")
-    ],
-    ("mob", "ID", "166"): @[
-        ("Name", "Merman 6")
-    ],
-    ("mob", "ID", "122"): @[
-        ("Name", "Baba Yaga House")
-    ],
-    ("mob", "ID", "142"): @[
-        ("Name", "Pirate Skeleton 2")
-    ],
-    ("mob", "ID", "153"): @[
-        ("Name", "Tribe 1")
-    ],
-    ("mob", "ID", "154"): @[
-        ("Name", "Tribe 2")
-    ],
-    ("mob", "ID", "155"): @[
-        ("Name", "Tribe 3")
-    ],
-    ("mob", "ID", "187"): @[
-        ("Name", "Crab (Blue)")
-    ],
-    ("mob", "ID", "200"): @[
-        ("Name", "Thug Penguin 1")
-    ],
-    ("mob", "ID", "201"): @[
-        ("Name", "Thug Penguin 2")
-    ],
+    ("mob", "ID", "2"): @[("Name", "Swamp Thing 1")],
+    ("mob", "ID", "18"): @[("Name", "NPC Base")],
+    ("mob", "ID", "29"): @[("Name", "Merman 1")],
+    ("mob", "ID", "30"): @[("Name", "Merman 2")],
+    ("mob", "ID", "31"): @[("Name", "Merman 3")],
+    ("mob", "ID", "32"): @[("Name", "Swamp Thing 2")],
+    ("mob", "ID", "33"): @[("Name", "Swamp Thing 3")],
+    ("mob", "ID", "34"): @[("Name", "Blood Thing 1")],
+    ("mob", "ID", "35"): @[("Name", "Blood Thing 2")],
+    ("mob", "ID", "36"): @[("Name", "Blood Thing 3")],
+    ("mob", "ID", "39"): @[("Name", "Pirate Skeleton 1")],
+    ("mob", "ID", "49"): @[("Name", "Orc Archer 1")],
+    ("mob", "ID", "51"): @[("Name", "Orc Archer 2")],
+    ("mob", "ID", "92"): @[("Name", "Sarcophagus")],
+    ("mob", "ID", "93"): @[("Name", "Ghoul (Second Part)")],
+    ("mob", "ID", "95"): @[("Name", "Octopus 1")],
+    ("mob", "ID", "96"): @[("Name", "Octopus 2")],
+    ("mob", "ID", "101"): @[("Name", "Fish 1")],
+    ("mob", "ID", "102"): @[("Name", "Fish 2")],
+    ("mob", "ID", "103"): @[("Name", "Fish 3")],
+    ("mob", "ID", "104"): @[("Name", "Fish 4")],
+    ("mob", "ID", "105"): @[("Name", "Fish 5")],
+    ("mob", "ID", "106"): @[("Name", "Fish 6")],
+    ("mob", "ID", "107"): @[("Name", "Fish 7")],
+    ("mob", "ID", "123"): @[("Name", "Spikeball Trap")],
+    ("mob", "ID", "164"): @[("Name", "Merman 4")],
+    ("mob", "ID", "165"): @[("Name", "Merman 5")],
+    ("mob", "ID", "166"): @[("Name", "Merman 6")],
+    ("mob", "ID", "122"): @[("Name", "Baba Yaga House")],
+    ("mob", "ID", "142"): @[("Name", "Pirate Skeleton 2")],
+    ("mob", "ID", "153"): @[("Name", "Tribe 1")],
+    ("mob", "ID", "154"): @[("Name", "Tribe 2")],
+    ("mob", "ID", "155"): @[("Name", "Tribe 3")],
+    ("mob", "ID", "187"): @[("Name", "Crab (Blue)")],
+    ("mob", "ID", "200"): @[("Name", "Thug Penguin 1")],
+    ("mob", "ID", "201"): @[("Name", "Thug Penguin 2")],
     
-    ("mob", "ID", "203"): @[
-        ("Name", "Wild Dryad 1")
-    ],
+    ("mob", "ID", "203"): @[("Name", "Wild Dryad 1")],
     
-    ("mob", "ID", "211"): @[
-        ("Name", "Dandelion (mob)")
-    ],
+    ("mob", "ID", "211"): @[("Name", "Dandelion (mob)")],
     
-    ("mob", "ID", "214"): @[
-        ("Name", "Wild Dryad 2")
-    ],
-    ("mob", "ID", "215"): @[
-        ("Name", "Wild Dryad 3")
-    ],
+    ("mob", "ID", "214"): @[("Name", "Wild Dryad 2")],
+    ("mob", "ID", "215"): @[("Name", "Wild Dryad 3")],
     
-    ("item", "ID", "358"): @[
-        ("Name", "Teeth (accessory)"),
-        ("label", "Teeth")
-    ],
+    ("item", "ID", "290"): @[("Name", "Miner Helmet")],
     
-    ("item", "ID", "868"): @[
-        ("Name", "Ghostlands Table 1"),
-        ("label", "Ghostlands Table")
-    ],
-    ("item", "ID", "869"): @[
-        ("Name", "Ghostlands Table 2"),
-        ("label", "Ghostlands Table")
-    ],
-    ("item", "ID", "870"): @[
-        ("Name", "Ghostlands Big Table 1"),
-        ("label", "Ghostlands Big Table")
-    ],
-    ("item", "ID", "871"): @[
-        ("Name", "Ghostlands Big Table 2"),
-        ("label", "Ghostlands Big Table")
-    ],
+    ("item", "ID", "358"): @[("Name", "Teeth (accessory)"),("label", "Teeth")],
     
-    ("item", "ID", "898"): @[
-        ("Name", "Tribal Helmet (Set 1)")
-    ],
-    ("item", "ID", "899"): @[
-        ("Name", "Tribal Armor (Set 1)")
-    ],
-    ("item", "ID", "900"): @[
-        ("Name", "Tribal Skirt (Set 1)")
-    ],
-    ("item", "ID", "901"): @[
-        ("Name", "Tribal Helmet (Set 2)")
-    ],
-    ("item", "ID", "902"): @[
-        ("Name", "Tribal Armor (Set 2)")
-    ],
-    ("item", "ID", "903"): @[
-        ("Name", "Tribal Skirt (Set 2)")
-    ],
-    ("item", "ID", "904"): @[
-        ("Name", "Tribal Helmet (Set 3)")
-    ],
-    ("item", "ID", "905"): @[
-        ("Name", "Tribal Armor (Set 3)")
-    ],
-    ("item", "ID", "906"): @[
-        ("Name", "Tribal Skirt (Set 3)")
-    ],
+    ("item", "ID", "433"): @[("Name", "Witch Coat (unobtainable)")],
+    ("item", "ID", "434"): @[("Name", "Witch Skirt (unobtainable)")],
     
-    ("item", "ID", "1430"): @[
-        ("Name", "Merman's Banner 2")
-    ],
-    ("item", "ID", "1452"): @[
-        ("Name", "Merman's Banner 1")
-    ],
-    ("item", "ID", "1483"): @[
-        ("Name", "Tribe's Banner 1")
-    ],
-    ("item", "ID", "1484"): @[
-        ("Name", "Tribe's Banner 2")
-    ],
-    ("item", "ID", "1485"): @[
-        ("Name", "Tribe's Banner 3")
-    ],
-    ("item", "ID", "1525"): @[
-        ("Name", "Merman's Soul 2")
-    ],
-    ("item", "ID", "1547"): @[
-        ("Name", "Merman's Soul 1")
-    ],
-    ("item", "ID", "1578"): @[
-        ("Name", "Tribe's Soul 1")
-    ],
-    ("item", "ID", "1579"): @[
-        ("Name", "Tribe's Soul 2")
-    ],
-    ("item", "ID", "1580"): @[
-        ("Name", "Tribe's Soul 3")
-    ],
+    ("item", "ID", "868"): @[("Name", "Ghostlands Table 1"),("label", "Ghostlands Table")],
+    ("item", "ID", "869"): @[("Name", "Ghostlands Table 2"),("label", "Ghostlands Table")],
+    ("item", "ID", "870"): @[("Name", "Ghostlands Big Table 1"),("label", "Ghostlands Big Table")],
+    ("item", "ID", "871"): @[("Name", "Ghostlands Big Table 2"),("label", "Ghostlands Big Table")],
     
-    ("item", "ID", "1834"): @[
-        ("Name", "Day Grass Floor 1")
-    ],
-    ("item", "ID", "1835"): @[
-        ("Name", "Night Grass Floor 1")
-    ],
+    ("item", "ID", "898"): @[("Name", "Tribal Helmet (Set 1)")],
+    ("item", "ID", "899"): @[("Name", "Tribal Armor (Set 1)")],
+    ("item", "ID", "900"): @[("Name", "Tribal Skirt (Set 1)")],
+    ("item", "ID", "901"): @[("Name", "Tribal Helmet (Set 2)")],
+    ("item", "ID", "902"): @[("Name", "Tribal Armor (Set 2)")],
+    ("item", "ID", "903"): @[("Name", "Tribal Skirt (Set 2)")],
+    ("item", "ID", "904"): @[("Name", "Tribal Helmet (Set 3)")],
+    ("item", "ID", "905"): @[("Name", "Tribal Armor (Set 3)")],
+    ("item", "ID", "906"): @[("Name", "Tribal Skirt (Set 3)")],
     
-    ("item", "ID", "1843"): @[
-        ("Name", "Day Grass Floor 2")
-    ],
-    ("item", "ID", "1845"): @[
-        ("Name", "Night Grass Floor 2")
-    ],
+    ("item", "ID", "1430"): @[("Name", "Merman's Banner 2")],
+    ("item", "ID", "1452"): @[("Name", "Merman's Banner 1")],
+    ("item", "ID", "1483"): @[("Name", "Tribe's Banner 1")],
+    ("item", "ID", "1484"): @[("Name", "Tribe's Banner 2")],
+    ("item", "ID", "1485"): @[("Name", "Tribe's Banner 3")],
+    ("item", "ID", "1525"): @[("Name", "Merman's Soul 2")],
+    ("item", "ID", "1547"): @[("Name", "Merman's Soul 1")],
+    ("item", "ID", "1578"): @[("Name", "Tribe's Soul 1")],
+    ("item", "ID", "1579"): @[("Name", "Tribe's Soul 2")],
+    ("item", "ID", "1580"): @[("Name", "Tribe's Soul 3")],
     
-    ("item", "ID", "1951"): @[
-        ("Name", "Day Flowerpot (Yellow)")
-    ],
-    ("item", "ID", "1992"): @[
-        ("Name", "Night Flowerpot (Convallaria)")
-    ],
+    ("item", "ID", "1787"): @[("Name", "Enchantress Helmet")],
+    
+    ("item", "ID", "1834"): @[("Name", "Day Grass Floor 1")],
+    ("item", "ID", "1835"): @[("Name", "Night Grass Floor 1")],
+    
+    ("item", "ID", "1843"): @[("Name", "Day Grass Floor 2")],
+    ("item", "ID", "1845"): @[("Name", "Night Grass Floor 2")],
+    
+    ("item", "ID", "1951"): @[("Name", "Day Flowerpot (Yellow)")],
+    ("item", "ID", "1992"): @[("Name", "Night Flowerpot (Convallaria)")],
 }.toTable

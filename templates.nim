@@ -185,6 +185,7 @@ proc resolveChain(text: var string, node: var JsonNode, chain: var string, optio
     var field: string
     var value: string = ""
 
+    # iteration
     if chain.startsWith("i."):
         chainParse = chain
         discard chainParse.eat(".") # remove i.
@@ -194,6 +195,19 @@ proc resolveChain(text: var string, node: var JsonNode, chain: var string, optio
         chainParse = chain
         field = chainParse.eat(".")
         value = ""
+    
+    # coalesce fields
+    if field.startsWith("coalesce:"):
+        discard field.eat(":") # remove coalesce: from start
+        let params = field.split(":")
+        
+        for v in params:
+            field = v
+            if node.hasKey(v):
+                break
+    
+    if field.startsWith("comment:"):
+        field = ""
     
     # this loop walks the keys until we get a JString or a nonexistant key
     while true:
@@ -219,12 +233,16 @@ proc resolveChain(text: var string, node: var JsonNode, chain: var string, optio
         if field == "":
             break
         let splitParts = field.split(":")
-        let fmtName = splitParts[0]
+        var fmtName = splitParts[0]
         var params = if splitParts.len > 1: splitParts[1..^1] else: @[]
         
         # special case for "once": prepend loop index automatically
-        if fmtName == "once":
+        if fmtName == "once" and opt.hasKey("i"):
             params.insert($opt["i"].getInt, 0)   # $i is loop index variable
+        
+        if fmtName == "length":
+            fmtName = "text"
+            params = @[$node.len]
         
         if formatters.hasKey(fmtName):
             value = unpackVarargs(formatters[fmtName], @[value] & params)
@@ -236,11 +254,15 @@ proc resolveChain(text: var string, node: var JsonNode, chain: var string, optio
     text = text.replace("__" & chain & "__", value)
 
 proc resolveTemplate*(text: var string, node: var JsonNode) =
+    if "__eof__" in text:
+        text = text.split("__eof__")[0]
+    
     resolveChainSimple(text, node)
     
     for identifier in text.extractIdentifiers:
         var chain = identifier
-        if chain.startsWith("i.") or chain.startsWith("iterate:") or chain.startsWith("end iterate"):
+        if chain.startsWith("i.") or chain.startsWith("iterate:") or chain.startsWith("end iterate") or chain == "once":
+            # defer these to next loop handling iteration
             discard
         else:
             # localize node
@@ -269,11 +291,12 @@ proc resolveTemplate*(text: var string, node: var JsonNode) =
                     var itemCurrent = item
                     var iterIdCopy = iterId
                     let opt = %* {"i":  i}
-                    resolveChain(itemText, itemCurrent, iterIdCopy, opt)
 
                     if iterId == "once":
                         iterText = iterText.removeLinesStartingWith("__once__")
                         itemText = itemText.replace("__once__", "")
+                    
+                    resolveChain(itemText, itemCurrent, iterIdCopy, opt)
                 
                 if i < node[iterField].len - 1:
                     itemText &= sep

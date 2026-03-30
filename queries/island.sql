@@ -9,7 +9,7 @@ localized AS (
         island.*, -- include ALL original columns
 
         -- Add localized variants with unique names
-        COALESCE(NULLIF(en_name.text, ''), island.name) AS Name_localized,
+        COALESCE(en_replacename.name, NULLIF(en_name.text, ''), island.name) AS Name_localized,
         COALESCE(NULLIF(en_desc.text, ''), island.description) AS Description_localized
 
     FROM island
@@ -21,6 +21,11 @@ localized AS (
     LEFT JOIN translations AS en_name
         ON en_name.key = island.name
        AND en_name.lang = lang.value COLLATE NOCASE
+
+    -- Join replacelist for name
+    LEFT JOIN replacelist AS en_replacename
+        ON en_replacename.category = "island"
+       AND en_replacename.id = island.id
 
     -- Join translation for description
     LEFT JOIN translations AS en_desc
