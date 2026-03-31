@@ -218,6 +218,9 @@ proc resolveChain(text: var string, node: var JsonNode, chain: var string, optio
             let n = field.parseInt
             node = node[n]
             field = chainParse.eat(".")
+        elif node.kind == JArray and node.elems.len == 0:
+            value = ""
+            break
         elif node.kind == JArray and node[0].kind == JObject and node[0].hasKey(field):
             node = node[0][field]
             field = chainParse.eat(".")
@@ -225,7 +228,7 @@ proc resolveChain(text: var string, node: var JsonNode, chain: var string, optio
             node = node[field]
             field = chainParse.eat(".")
         else:
-            value = field
+            value = ""
             break
     
     # from here we've walked the keys and the rest should be formatters
@@ -247,15 +250,21 @@ proc resolveChain(text: var string, node: var JsonNode, chain: var string, optio
         if formatters.hasKey(fmtName):
             value = unpackVarargs(formatters[fmtName], @[value] & params)
         else:
-            value = fmtName
+            value = ""
         
         field = chainParse.eat(".")
 
     text = text.replace("__" & chain & "__", value)
 
 proc resolveTemplate*(text: var string, node: var JsonNode) =
+    var postText = ""
+    
     if "__eof__" in text:
         text = text.split("__eof__")[0]
+    
+    if "__end template__" in text:
+        postText = text.split("__end template__")[1]
+        text = text.split("__end template__")[0]
     
     resolveChainSimple(text, node)
     
@@ -305,4 +314,11 @@ proc resolveTemplate*(text: var string, node: var JsonNode) =
                 i += 1
             
             text = text.replace("__" & identifier & "__" & originalIterText & "__end iterate__", newIterText)
-
+    
+    while true:
+        if "__scrub__" in postText:
+            let scrubText = postText.split("__scrub__")[1].split("__end scrub__")[0]
+            text = text.replace(scrubText, "")
+            postText = postText.replace("__scrub__" & scrubText & "__end scrub__", "")
+        else:
+            break

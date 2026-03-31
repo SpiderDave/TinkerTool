@@ -175,6 +175,20 @@ INSERT INTO blacklist VALUES ('item', 1692); -- Dynamo Key
 INSERT INTO blacklist VALUES ('item', 1693); -- Energy Lasso
 INSERT INTO blacklist VALUES ('item', 1694); -- Rigged Dice
 
+INSERT INTO blacklist VALUES ('item', 1739); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1740); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1741); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1742); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1743); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1744); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1745); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1746); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1747); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1748); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1749); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1750); -- Sound Platform
+INSERT INTO blacklist VALUES ('item', 1751); -- Sound Platform
+
 INSERT INTO blacklist VALUES ('item', 1854); -- Crab Map
 
 INSERT INTO blacklist VALUES ('item', 1893); -- Day Phoenix Egg
@@ -182,3 +196,10 @@ INSERT INTO blacklist VALUES ('item', 1894); -- Night Phoenix Egg
 INSERT INTO blacklist VALUES ('item', 1900); -- Day Phoenix's Soul
 INSERT INTO blacklist VALUES ('item', 1901); -- Night Phoenix's Soul
 INSERT INTO blacklist VALUES ('item', 1962); -- Twilight Amulet
+
+INSERT INTO blacklist VALUES ('recipe', 238); -- Ghostbuster (Recipe)
+INSERT INTO blacklist VALUES ('recipe', 360); -- dev_recipe
+
+INSERT INTO blacklist VALUES ('summon', 37); -- pet_phoenix
+
+

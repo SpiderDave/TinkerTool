@@ -39,6 +39,43 @@ Shop
 +----------------------+--------------------------------+----------------------+__iterate:Shop__
 | __i.Name.pad:20__ | __i.Sell.money.pad:30__ | __i.text:Always Available.once.pad:20__ |__end iterate__
 +----------------------+--------------------------------+----------------------+
+__end template__
+
+
+Since this is after the "end template" we can type freely. The scrub blocks below
+just match the text and remove it. This allows removal of empty/invalid data with
+a simple text match.
+
+__scrub__----------------------------------------
+Housing Requirements
+----------------------------------------
+
+
+__end scrub__
+__scrub__----------------------------------------
+Likes
+----------------------------------------
+
+
+__end scrub__
+__scrub__----------------------------------------
+Dislikes
+----------------------------------------
+
+
+__end scrub__
+__scrub__
+----------------------------------------
+Shop
+----------------------------------------
+
++----------------------+--------------------------------+----------------------+
+| Item                 | Cost                           | Availability         |
++----------------------+--------------------------------+----------------------+
++----------------------+--------------------------------+----------------------+
+__end scrub__
+
+
 __eof__ <-- marks the end of file so everything after it is ignored.
 
 

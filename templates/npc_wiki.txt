@@ -26,3 +26,12 @@ __once__| rowspan="__Shop.length__" | Always Available__end iterate__
 
 [[category:npc]]
 [[category:merchant]]
+__end template__
+
+__scrub__{{clear}}
+==Shop==
+{| class="shop"
+|-
+! Merchant !! Item !! Cost !! Availability
+|}
+__end scrub__

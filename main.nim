@@ -16,7 +16,7 @@ import
     std/macros
 
 # statically compile sqlite3
-#{.compile: "./lib/sqlite/sqlite3.c".}  # relative to main.nim
+{.compile: "./lib/sqlite/sqlite3.c".}
 
 import
     pixie,                  # nimble install pixie
@@ -325,7 +325,7 @@ proc getAllRowsWithColumns(db: DbConn, q: SqlQuery, args: varargs[string]): seq[
 
 proc getAllRowsAsTables(db: DbConn, q: SqlQuery, args: varargs[string]): seq[OrderedTable[string,string]] =
   var cols: DbColumns
-
+  
   for r in db.instantRows(cols, q, args):
     var rowTable = initOrderedTable[string,string]()
 
@@ -481,6 +481,10 @@ proc getLanguage(options: Opts):string =
 proc expandItems(db: DbConn, itemString: string): JsonNode =
     let t = %* []
     let t2 = %* []
+    
+    if itemString == "":
+        return t2
+    
     var categories: seq[string]
     for entry in itemString.split("],["):
         var cat = ""
@@ -500,12 +504,16 @@ proc expandItems(db: DbConn, itemString: string): JsonNode =
             categories.add(cat)
     
     var where = ""
+    var i = 0
     for cat in categories:
         var keys: seq[string]
         for item in t:
             if $item["cat"].getStr == cat:
                 keys.add(item["key"].getStr)
+        if i > 0:
+            where &= "OR\n"
         where &= "    key IN (" & '"' & keys.join("""", """") & '"' & ")\n"
+        i += 1
         
         # run a query once per category
         var queryString: string
@@ -519,6 +527,8 @@ proc expandItems(db: DbConn, itemString: string): JsonNode =
         
         if cfg.getBool("replace") == false:
             queryString = queryString.replace("COALESCE(en_replacename.name, ", "COALESCE(")
+        
+#        echo queryString
         
         var rows = db.get(queryString.sql)
         
@@ -569,6 +579,18 @@ proc getData(db: DbConn, cat, key, value: string): JsonNode =
         t.add(node)
     return t
 
+proc getData(db: DbConn, queryString: string): JsonNode =
+    let t = %* []
+    
+    var rows = db.get(queryString.sql)
+    
+    for row in rows:
+        var node = %* {}
+        for col, value in row.pairs:
+            node[col] = % $value
+        t.add(node)
+    return t
+
 # format search string
 # ^ match start of string
 # $ match end of string
@@ -578,7 +600,7 @@ proc formatSearch(search: var string, exact = false) =
     if search == "all":
         search = ""
     search = search.replace("%", fmt"\%")
-    if exact == false and "*" notin search and search.len > 0:
+    if exact != true and "*" notin search and search.len > 0:
         if search.startsWith("^"): search = search[1..<search.len]
         else: search = "*" & search
         
@@ -630,6 +652,9 @@ proc usage() =
     echo "                                             wiki). If \"recipeicon\" is used, icons will be 16 px high and add recipe"
     echo "                                             overlay."
     echo "                                             wiki)."
+    echo "      -template <template>                   Use <template> in -get. The template names are based on files in the "
+    echo "                                             templates folder without the extension, for example \"npc_text\""
+    echo "                                             Note: templates are a work in progress and may change."
     echo "      -backup                                Backup all worlds, players, user options, languages."
     echo "      -extractworld <file>                   Extract all files from a world save <file>."
     echo "      -extractworld <slot>                   Extract all files from a world save <slot>."
@@ -902,7 +927,6 @@ when isMainModule:
         
         var searchList: seq[string]
         var cat = "item"
-        var search = ""
         var key = "all"
         if opt.len > 0:
             # category
@@ -915,15 +939,9 @@ when isMainModule:
             for item in opt[2..<opt.len]:
                 searchList.add(item)
         
-        if key == "name":
-            key = "name_localized"
-        if key == "description":
-            key = "description_localized"
-        if key == "gender":
-            key = "gender_localized"
-        
-        # apply and convert wildcards to search string
-        search.formatSearch(options.hasOpt("exact"))
+        if key == "name": key = "name_localized"
+        if key == "description": key = "description_localized"
+        if key == "gender": key = "gender_localized"
         
         var queryString: string
         
@@ -943,7 +961,9 @@ when isMainModule:
             var str = ""
             for i in 0..<searchList.len:
                 var search = searchList[i]
-                search.formatSearch
+                
+                # apply and convert wildcards to search string
+                search.formatSearch(options.hasOpt("exact"))
 
                 if i > 0:
                     str &= "    OR\n    "
@@ -959,6 +979,26 @@ when isMainModule:
         
         if options.hasOpt("showquery"):
             print queryString
+        
+        if options.hasOpt("template"):
+            for t in db.getData(queryString):
+#            let t = db.getData(queryString)[0]
+                db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet", "Equipped Armor", "Equipped Legs")
+            
+                # expand furniture to get the item instead of interactable
+                if t.hasKey("Furniture Required"):
+                    for item in t["Furniture Required"]:
+                        db.expandItems(item, "Item")
+                
+                echo "test"
+                
+                var text = loadTemplate(options.getOpt("template")[0])
+                var node = t
+                
+                resolveTemplate(text, node)
+                
+                print text
+            quit()
         
         var rows = db.get(queryString.sql)
         
@@ -1047,7 +1087,7 @@ when isMainModule:
                     else:
                         imageKey = o
                 
-                imageKey = row.getFirstValid(imageKey, "Icon", "Sprite", "Sprite Idle")
+                imageKey = row.getFirstValid(imageKey, "Icon", "Sprite", "Sprite Idle", "sprite")
                 let fromFile = getSpriteFile(imageKey)
                 
                 if fromFile != "":
