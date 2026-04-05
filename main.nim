@@ -13,7 +13,7 @@ import
     std/streams,
     std/sets,
     std/tables,
-    std/macros
+    std/random
 
 # statically compile sqlite3
 {.compile: "./lib/sqlite/sqlite3.c".}
@@ -30,7 +30,9 @@ import
     TinkerEdit,
     config,
     playerSave,
-    templates
+    templates,
+    names,
+    util
 
 var language = "English"
 
@@ -46,6 +48,7 @@ A Tinkerlands multi tool.
 
 const recipeOverlayImageData = readFile("recipe overlay.png")
 
+var db: DbConn
 var printOutput = ""
 
 var cfg = initConfig()
@@ -68,6 +71,8 @@ cfg["replace"] = "false"
 #echo getEnv("programfiles(x86)")
 #echo getEnv("programfiles")
 
+randomize()
+
 proc isDecimal(s: string): bool =
     if s.len == 0:
         return false
@@ -77,29 +82,6 @@ proc isDecimal(s: string): bool =
         chars.incl c
 
     return chars <= {'0'..'9'}
-
-iterator reverse[T](a: seq[T]): T {.inline.} =
-    var i = len(a) - 1
-    while i > -1:
-        yield a[i]
-        dec(i)
-
-proc createFolders(path: string) =
-    var folders:seq[string]
-    var f = $path
-    while f.splitPath.head != "":
-        folders.add(f)
-        if f.splitPath.head.endsWith(":"):
-            break
-        f = f.splitPath.head
-    folders.add(f)
-
-    for f in reverse(folders):
-        if f != "":
-            try:
-                discard existsOrCreateDir(f)
-            except:
-                discard
 
 # human readable duration
 proc pretty(elapsed: Duration): string =
@@ -140,7 +122,7 @@ proc buildDatabase(db: DbConn) =
     db.exec(sql"DROP TABLE IF EXISTS categories")
     db.exec(sql"""CREATE TABLE categories (
                      id   INTEGER PRIMARY KEY AUTOINCREMENT,
-                     name VARCHAR(50) NOT NULL
+                     name TEXT NOT NULL COLLATE NOCASE
                   )""")
 
     let baseFolder = cfg.get("dbFolder")
@@ -202,7 +184,7 @@ proc buildDatabase(db: DbConn) =
                             if v != "ID":
                                 if not(v in allKeys):
                                     db.exec(sql"""ALTER TABLE ?
-                                                  ADD COLUMN ? TEXT
+                                                  ADD COLUMN ? TEXT COLLATE NOCASE
                                                   """,
                                         cat, v)
 
@@ -233,7 +215,8 @@ proc buildDatabase(db: DbConn) =
             discard
 
     db.execSqlFile("queries/blacklist.sql")
-    db.exec(sql(readFile("queries/createIndexes.sql")))
+    db.execSqlFile("queries/replace.sql")
+    db.execSqlFile("queries/createIndexes.sql")
 
 proc buildLanguages(db: DbConn) =
     echo "Building Translations..."
@@ -242,14 +225,14 @@ proc buildLanguages(db: DbConn) =
     db.exec(sql"""
         CREATE TABLE languages (
             id   INTEGER PRIMARY KEY AUTOINCREMENT,
-            name VARCHAR(50) NOT NULL
+            name TEXT NOT NULL COLLATE NOCASE
         )""")
     db.exec(sql"DROP TABLE IF EXISTS translations")
     db.exec(sql"""
         CREATE TABLE translations (
-                     key TEXT,
-                     lang TEXT,
-                     text TEXT,
+                     key TEXT COLLATE NOCASE,
+                     lang TEXT COLLATE NOCASE,
+                     text TEXT COLLATE NOCASE,
                      PRIMARY KEY (key, lang)
                   )
         """)
@@ -282,6 +265,10 @@ proc buildLanguages(db: DbConn) =
                         var v = splitLine[1]
                         if v.len > 2:
                             v = v[1..^2]
+
+                        # fix extra space in some entries like: "Daywood " --> "Daywood"
+                        v = v.strip
+                        
                         db.exec(sql"INSERT OR IGNORE INTO translations (lang, key, text) VALUES (?, ?, ?)",
                                 lang, k, v)
                     else:
@@ -556,7 +543,7 @@ proc expandItems(db: DbConn, jObj: JsonNode, keys: varargs[string]) =
 
 proc getData(db: DbConn, cat, key, value: string): JsonNode =
     let t = %* []
-    let where = fmt"""    "{key}" = "{value}""""
+    let where = fmt"""    "{key}" = "{value}" COLLATE NOCASE"""
     
     var queryString: string
     if fileExists(fmt"queries/{cat}.sql"):
@@ -590,6 +577,25 @@ proc getData(db: DbConn, queryString: string): JsonNode =
             node[col] = % $value
         t.add(node)
     return t
+
+proc itemId(db: DbConn, name: string): int =
+    let t = %* []
+    let where = fmt"""    "name_localized" = "{name}" COLLATE NOCASE"""
+    
+    var queryString: string
+    queryString = readFile(fmt"queries/itemid.sql")
+    queryString = queryString.replace("__language__", language)
+    queryString = queryString.replace("__where__", where)
+    
+    var rows = db.get(queryString.sql)
+    
+    for row in rows:
+        var node = %* {}
+        for col, value in row.pairs:
+            node[col] = % $value
+        t.add(node)
+    
+    return t[0]["ID"].getStr.parseInt
 
 # format search string
 # ^ match start of string
@@ -633,6 +639,13 @@ proc replace(s, sub, by: string, maxRepl: int): string =
     result = res
 #]#
 
+proc giveItem(p: PlayerSave, name: string, amount: int = 1) =
+    if p.inventoryIsFull:
+        return
+    let (x, y) = p.getFreeInventorySlot
+    var node = p.data[5]["items"]
+    node.add(%*[db.itemID(name).float,x.float,y.float,amount.float,0.0,nil,nil])
+
 proc usage() = 
     echo "Usage: ", app.name, " [opts]"
     echo ""
@@ -661,6 +674,12 @@ proc usage() =
     echo "      -buildworld <file>                     Rebuild a world from files and save to <file>."
     echo "      -extractplayer <file>                  Extract all files from a player save <file>."
     echo "      -extractplayer <slot>                  Extract all files from a player save <slot>."
+    echo "      -loadplayer <file>                     Load player save <file>."
+    echo "      -loadplayer <slot>                     Load player save <slot>."
+    echo "      -saveplayer                            Save loaded player."
+    echo "      -stripmods                             Attempt to strip mods from loaded player."
+    echo "      -sortshopitems                         Sort shop items for loaded player."
+    echo "      -cheat                                 Add cheats to loaded player."
     echo "      -buildplayer <file>                    Rebuild a player from files and save to <file>."
     echo "      -builddatabase                         Build database (tinkerlands.db). Takes a long time."
     echo "      -output [<filename=output.txt>]        Write output to <filename>."
@@ -686,6 +705,8 @@ when isMainModule:
     # save config, ensuring any lost defaults are also saved
     # and that the config file is created if it was deleted.
     cfg.save(configFile)
+    
+    var player: PlayerSave
     
     let options = simpleopts.parseOpts()
     
@@ -773,6 +794,7 @@ when isMainModule:
         createFolders(backupFolder)
         
         # languages
+        print "Backing up languages.."
         createFolders(backupFolder / "languages")
         for kind, path in walkDir(cfg.get("languageFolder")):
             case kind:
@@ -782,12 +804,14 @@ when isMainModule:
                 discard
         
         # user options
+        print "Backing up user options.."
         let fromFile = cfg.get("saveFolder") / "useroptions.conf"
         let toFile = backupFolder / "useroptions.conf"
         if fileExists(fromFile):
             copyFile(fromFile, toFile)
         
         # players
+        print "Backing up players.."
         createFolders(backupFolder / "players")
         for playerNum in 1..4:
             let fromFile = cfg.get("saveFolder") / "players" / fmt"savegame0{playerNum}.player"
@@ -797,6 +821,7 @@ when isMainModule:
                 copyFile(fromFile, toFile)
     
         # worlds
+        print "Backing up worlds.."
         createFolders(backupFolder / "worlds")
         for worldNum in 1..4:
             let fromFolder = cfg.get("saveFolder") / "worlds" / fmt"savegame0{worldNum}"
@@ -814,29 +839,23 @@ when isMainModule:
                         
                         if fileExists(fromFile):
                             copyFile(fromFile, toFile)
+        print "Done."
         quit()
     
     if options.hasOpt("test") and cfg.getBool("debug"):
-        var p = loadPlayer("savegame01.player")
-#        for item in p.data:
-#            echo item
-#            echo "----------------------------------"
-        echo fmt"Version: {p.version}"
-        echo p["version"]
-        p.sortShopItems
+    
+        var text = """
+        The quick
+        brown fox
+        jumps over
+        the lazy
+        dog.
+        """
         
-#        p.data[2]["hpMax"] = % 50000
+        echo text.removeFirstLine
         
-        p["maxHp"] = 500
-        
-        echo p["maxHp"].getInt
-        echo p.data[2]["hpMax"]
-        
-        echo "foo", "bar", "baz"
-        print "hello ", "world ", 42
-        print "foo", "bar", "baz"
-        
-        echo printOutput
+#        echo text
+    
     
     if options.hasOpt("sortshopitems"):
         let filename = "data/player/output.13.json"
@@ -862,7 +881,106 @@ when isMainModule:
             echo fmt"ERROR: Database does not exist ({dbFile})"
             quit()
     
-    let db = open(cfg.get("dbFile"), "", "", "")
+    db = open(cfg.get("dbFile"), "", "", "")
+    
+    if options.hasOpt("loadplayer"):
+        var filename = options.getOpt("loadplayer")[0]
+        var playerNum = 0
+        
+        if filename in ["1","2","3","4"]:
+            playerNum = filename.parseInt
+            filename = cfg.get("saveFolder") / "players" / fmt"savegame0{playerNum}.player"
+        
+        player = loadPlayer(filename)
+        player.slot = playerNum
+        
+#        print player["name"]
+#        print player["hpMax"]
+#        print player["mpMax"]
+        
+        print fmt"""
+        Name:       {player["name"].getStr}
+        Max HP:     {player["hpMax"]}
+        Max MP:     {player["mpMax"]}
+        Defense:    {player["defense"]}
+        Skin:       {player["customization"]["skin"]}
+        Underwear:  {player["customization"]["underwear"]}
+        Voice:      {player["customization"]["voice"]}
+        Hair:       {player["customization"]["hair"]}
+        Hair Color: {player["customization"]["hairColor"]} ({player["customization"]["hairColor"].getFloat.int:x})
+        """.dedent
+        
+        # skin 1/4
+        # underwear 1/3
+        # voice 1/2
+        # hair type 1/26
+        # hair color 16751104.0 (ff9a00) bgr
+        
+    if options.hasOpt("randomizelook"):
+        player["customization"]["skin"] = % rand(0..<4)
+        player["customization"]["underwear"] = % rand(0..<3)
+#        player["customization"]["voice"] = % rand(0..<2)
+        player["customization"]["hair"] = % rand(0..<26)
+        player["customization"]["hairColor"] = % rand(0xffffff)
+        
+        if rand(1) == 0:
+            player["name"] = % sample(maleNames)
+            player["customization"]["voice"] = % 0.0
+        else:
+            player["name"] = % sample(femaleNames)
+            player["customization"]["voice"] = % 1.0
+        
+    
+    if options.hasOpt("stripmods"):
+        player.stripMods
+    
+    if options.hasOpt("sortshopitems"):
+        player.sortShopItems
+    
+    if options.hasOpt("give"):
+        let opt = options.getOpt("give")
+        
+        var amount = 1
+        for item in opt:
+            if item.isDecimal:
+                amount = item.parseInt
+            else:
+                player.giveItem(item, amount)
+                amount = 1
+    
+    if options.hasOpt("cheat"):
+        player["defense"] = 10000.0
+        player["mpMax"] = 1000.0
+        player["maxHp"] = 5000.0
+        player["dashUpgrade01"] = true
+        player["dashUpgrade02"] = true
+        player["speedUpgrade01"] = true
+        player["speedUpgrade02"] = true
+    
+        var node = player.data[5]["items"]
+        
+#        player.giveItem("Legendary Blazon")
+#        player.giveItem("Rare Candy", 42)
+#        player.giveItem("Wood")
+#        player.giveItem("Stick")
+#        player.giveItem("Rock")
+#        player.giveItem("Leaf")
+#        player.giveItem("Wooden Torch", 999)
+        
+        for item in splitQ("""99 "Wooden Torch" Rock 14 Wood 100 "Rare Candy" Leaf Stick 10 Rock"""):
+            var amount = 1
+            if item.isDecimal:
+                amount = item.parseInt
+            else:
+                player.giveItem(item, amount)
+                amount = 1
+        
+        echo node
+#        echo db.createItem("Legendary Blazon", 1)
+        # 1 Legendary Moonlight Claws (Haste level 100) locked
+    
+    if options.hasOpt("saveplayer"):
+        player.save
     
     if options.hasOpt("test3"):
         let t = db.getData("item", "Key", "accesory_teeth")[0]
@@ -1022,7 +1140,7 @@ when isMainModule:
                 elif row.hasKey("Key") and row.hasKey("ID"):
                     print fmt"""{row["ID"]} {row["Key"]}"""
                 else:
-                    let values = toSeq(row.values)[0].join(", ")
+                    let values = toSeq(row.values)[0]
                     print fmt"""{values}"""
             else:
                 if options.hasOpt("only"):

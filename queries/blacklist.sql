@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS blacklist;
 
 CREATE TABLE blacklist (
-    category TEXT NOT NULL,
+    category TEXT NOT NULL COLLATE NOCASE,
     id INTEGER NOT NULL,
     PRIMARY KEY (category, id)
 );
@@ -15,6 +15,11 @@ INSERT INTO blacklist VALUES ('recipe', 265); -- Wasteland Wood Coal recipe
 INSERT INTO blacklist VALUES ('recipe', 266); -- Fir Wood Coal recipe
 INSERT INTO blacklist VALUES ('recipe', 267); -- Swamp Wood Coal recipe
 INSERT INTO blacklist VALUES ('recipe', 268); -- Mushroom Wood Coal recipe
+
+INSERT INTO blacklist VALUES ('recipe', 184); -- ourobook (Quetzalcoatl Spell)
+INSERT INTO blacklist VALUES ('recipe', 185); -- serpent_whip (Quetzalcoatl Whip)
+INSERT INTO blacklist VALUES ('recipe', 188); -- ourobowros (Quetzalcoatl Bow)
+INSERT INTO blacklist VALUES ('recipe', 189); -- staff_ouroboros (Quetzalcoatl Staff)
 
 INSERT INTO blacklist VALUES ('mob', 3); -- Null (flying_eye)
 INSERT INTO blacklist VALUES ('mob', 79); -- Etc (dev_mob)

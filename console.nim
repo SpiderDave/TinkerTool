@@ -41,8 +41,12 @@ block mainConsoleLoop:
             echo fmt"Unknown command '\{cmd}'."
         
         while ";" in text:
-            stmt = text.split(';', 1)[0].strip
-            text = text.split(';', 1)[1]
+            if text.strip.startsWith("--"):
+                stmt = text.getFirstLine
+                text = text.removeFirstLine
+            else:
+                stmt = text.split(';', 1)[0].strip
+                text = text.split(';', 1)[1]
             
             let stmtL = stmt.toLowerAscii
             
@@ -149,7 +153,7 @@ block mainConsoleLoop:
                             echo "Query OK, 1 row affected"
                         else:
                             echo fmt"Query OK, {count} rows affected"
-                    
+        
         if text.strip == "":
             prompt = "sqlite> "
         else:

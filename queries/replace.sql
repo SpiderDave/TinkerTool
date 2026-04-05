@@ -1,9 +1,9 @@
 DROP TABLE IF EXISTS replacelist;
 
 CREATE TABLE replacelist (
-    category TEXT NOT NULL,
+    category TEXT NOT NULL COLLATE NOCASE,
     id INTEGER NOT NULL,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL COLLATE NOCASE,
     PRIMARY KEY (category, id)
 );
 
@@ -83,15 +83,15 @@ INSERT INTO replacelist VALUES("item", "1547", "Merman's Soul 1");
 INSERT INTO replacelist VALUES("item", "1578", "Tribe's Soul 1");
 INSERT INTO replacelist VALUES("item", "1579", "Tribe's Soul 2");
 INSERT INTO replacelist VALUES("item", "1580", "Tribe's Soul 3");
-    
+
+INSERT INTO replacelist VALUES("item", "1726", "Bard's Guitar");
 INSERT INTO replacelist VALUES("item", "1787", "Enchantress Helmet");
-    
+
 INSERT INTO replacelist VALUES("item", "1834", "Day Grass Floor 1");
 INSERT INTO replacelist VALUES("item", "1835", "Night Grass Floor 1");
-    
+
 INSERT INTO replacelist VALUES("item", "1843", "Day Grass Floor 2");
 INSERT INTO replacelist VALUES("item", "1845", "Night Grass Floor 2");
-    
 INSERT INTO replacelist VALUES("item", "1951", "Day Flowerpot (Yellow)");
 INSERT INTO replacelist VALUES("item", "1992", "Night Flowerpot (Convallaria)");
 

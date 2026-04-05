@@ -1,6 +1,7 @@
 import
     os,
     strutils,
+    sequtils,
     tables,
     json,
     strformat
@@ -12,6 +13,7 @@ import
 # --- Types ---
 type
   PlayerSave* = object
+    slot*: int = 0
     data*: seq[JsonNode]
 
   SetterProc* = proc(ps: var PlayerSave, value: JsonNode)
@@ -21,12 +23,12 @@ var setters*: Table[string, SetterProc] = initTable[string, SetterProc]()
 
 # --- Utility to set a field inside data ---
 proc setField*(ps: var PlayerSave, idx: int, field: string, value: JsonNode) =
-  if idx >= ps.data.len:
-    ps.data.setLen(idx + 1)
-    ps.data[idx] = %*{}
-  if ps.data[idx].kind != JObject:
-    ps.data[idx] = %*{}
-  ps.data[idx][field] = value
+    if idx >= ps.data.len:
+        ps.data.setLen(idx + 1)
+        ps.data[idx] = %*{}
+    if ps.data[idx].kind != JObject:
+        ps.data[idx] = %*{}
+    ps.data[idx][field] = value
 
 # --- Register normal field setter ---
 setters["maxHp"] = proc(ps: var PlayerSave, value: JsonNode) =
@@ -34,44 +36,45 @@ setters["maxHp"] = proc(ps: var PlayerSave, value: JsonNode) =
 
 # --- Register cheats setter with arbitrary side effects ---
 setters["cheats"] = proc(ps: var PlayerSave, value: JsonNode) =
-  if value.getBool:
-    setField(ps, 2, "hpMax", %1000)
-    setField(ps, 2, "hpCurrent", %1000)
-    # could also update undo data, flags, etc.
-  else:
-    setField(ps, 2, "hpMax", %500)
-    setField(ps, 2, "hpCurrent", %500)
+    if value.getBool:
+        setField(ps, 2, "hpMax", %1000)
+        setField(ps, 2, "hpCurrent", %1000)
+        # could also update undo data, flags, etc.
+    else:
+        setField(ps, 2, "hpMax", %500)
+        setField(ps, 2, "hpCurrent", %500)
 
 # --- Operators ---
 proc `[]=`*[T](ps: var PlayerSave, key: string, value: T) =
-  # Generic setter: converts any Nim type to JsonNode
-  let jvalue = % value
-  if setters.hasKey(key):
-    setters[key](ps, jvalue)
-  else:
-    setField(ps, 0, key, jvalue)
+    # Generic setter: converts any Nim type to JsonNode
+    let jvalue = % value
+
+    if setters.hasKey(key):
+        setters[key](ps, jvalue)
+    else:
+        for i in 0..<ps.data.len:
+            if ps.data[i].kind == JObject and ps.data[i].hasKey(key):
+                setField(ps, i, key, jvalue)
+                return
 
 proc `[]`*(ps: PlayerSave, key: string): JsonNode =
-  case key
-  of "cheats":
-    # compute based on actual data
-    if ps.data.len > 2 and ps.data[2].hasKey("hpMax"):
-      return % (ps.data[2]["hpMax"].getInt >= 1000)
+    case key
+    of "version":
+        return ps.data[0]
+    of "maxHp":
+        if ps.data.len > 2 and ps.data[2].hasKey("hpMax"):
+            return ps.data[2]["hpMax"]
+        else:
+            return % 0
     else:
-      return % false
-  of "version":
-    return ps.data[0]
-  of "maxHp":
-    if ps.data.len > 2 and ps.data[2].hasKey("hpMax"):
-      return ps.data[2]["hpMax"]
-    else:
-      return % 0
-  else:
-    # fallback: first data node
-    if ps.data.len > 0 and ps.data[0].hasKey(key):
-      return ps.data[0][key]
-    else:
-      return % 0
+        for i in 0..<ps.data.len:
+            if ps.data[i].kind == JObject and ps.data[i].hasKey(key):
+                return ps.data[i][key]
+        return % 0
+#    if ps.data.len > 0 and ps.data[2].hasKey(key):
+#      return ps.data[2][key]
+#    else:
+#      return % 0
 
 let npcShopIds* = @[
     0,      # The Guide
@@ -312,6 +315,9 @@ let shopOrder* = %*
     
     ]
 
+proc version*(save: PlayerSave): int =
+    save.data[0].getInt
+
 proc sortShopItems*(node: var JsonNode) =
     for npcId in npcShopIds:
 
@@ -394,7 +400,6 @@ proc buildPlayer*(saveFile: string) =
     writeFile(saveFile, lines.join("\r\n"))
     echo fmt"wrote {saveFile}"
 
-
 proc loadPlayer*(saveFile: string): PlayerSave =
     var index = 0
     var version = 0
@@ -427,12 +432,114 @@ proc loadPlayer*(saveFile: string): PlayerSave =
         
         inc index
 
-proc save*(ps: PlayerSave) =
-    # to be added
-    discard
+proc save*(ps: PlayerSave, saveFile: string) =
+    let version = ps.version
+    var useVersion = version
+    var lines: seq[string] = @[]
+    
+    # fall back to the closest version below the given
+    while not saveFormat.hasKey(useVersion):
+        dec useVersion
+        if useVersion <= 0:
+            quit fmt"Could not process save version {version}."
+    
+    for i in 0..<ps.data.len:
+        if saveFormat[useVersion][i] == "json":
+            lines.add minifyJson($ps.data[i])
+        elif saveFormat[useVersion][i] == "jstring":
+            lines.add stringifyJsonString($ps.data[i])
+        elif saveFormat[useVersion][i] == "number":
+            lines.add $ps.data[i].getInt
+    
+    lines.add ""
+    
+    writeFile(saveFile, lines.join("\r\n"))
+    echo fmt"wrote {saveFile}"
 
-proc version*(save: PlayerSave): int =
-    save.data[0].getInt
+proc save*(ps: PlayerSave) =
+    let filename = fmt"savegame0{ps.slot}.player.new" / ""
+    ps.save(filename)
+
+proc stripFromItems(node: var JsonNode) =
+    if node.kind == JArray:
+        node.elems = node.elems.filterIt(
+            it.kind == JArray and (
+                it.elems.len == 0 or
+                it[0].kind != JString or
+                not it[0].getStr.contains("@")
+            )
+        )
+
+proc stripMods*(ps: PlayerSave) =
+    # remove modded recipes
+    var arr = ps.data[2]["knownRecipes"]
+    arr.elems = arr.elems.filterIt(not it.getStr.contains("@"))
+    
+    # remove modded ingredients
+    arr = ps.data[2]["knownIngredients"]
+    arr.elems = arr.elems.filterIt(not it.getStr.contains("@"))
+    
+    # these blocks are here to capture the JsonNode for a mutable
+    # copy/reference to a variable then discard it when done.
+    
+    # remove modded items from equipment
+    block:
+        var node = ps.data[3]["items"]
+        node.stripFromItems
+    
+    # remove modded items from astral box
+    block:
+        var node = ps.data[4]["items"]
+        node.stripFromItems
+    
+    # remove modded items from inventory
+    block:
+        var node = ps.data[5]["items"]
+        node.stripFromItems
+
+    # remove modded items from transmutation cube
+    block:
+        var node = ps.data[14]["items"]
+        node.stripFromItems
+
+    # remove modded items from vault
+    block:
+        var node = ps.data[17]["items"]
+        node.stripFromItems
+
+    # remove modded items from farmer storage
+    block:
+        var node = ps.data[16]  # make a mutable copy/reference
+        
+        for item in node:
+            if item.hasKey("container"):
+                # Parse the JSON string stored in "container"
+                var containerNode = parseJson(item["container"].getStr.unstringifyJsonString)
+                
+                # Access the "items" array inside the container
+                var itemsNode = containerNode["items"]
+
+                itemsNode.stripFromItems
+
+                # Store back as a JString (escaped json)
+                item["container"] = % $containerNode
+
+    # remove modded items from shops
+    block:
+        for npcID in 0..100:
+            let npcKey = $npcID
+            if ps.data[12]["npcs"].hasKey(npcKey):
+                var shop = ps.data[12]["npcs"][npcKey]["shopExtraItems"]
+
+                # Filter out any strings containing "@"
+                shop.elems = shop.elems.filterIt(
+                    it.kind != JString or not it.getStr.contains("@")
+                )
+
+#    for i in 6..11:
+#        if ps.data[i].kind == JString and ps.data[i].contains("@"):
+#            var node = ps.data[i]
+#            node = % 0
 
 proc sortShopItems*(save: var PlayerSave) =
     for npcId in npcShopIds:
@@ -450,4 +557,18 @@ proc sortShopItems*(save: var PlayerSave) =
         
         save.data[12]["npcs"][key]["shopExtraItems"] = j
 
+proc getFreeInventorySlot*(ps: PlayerSave): tuple[x, y: int] =
+    let node = ps.data[5]["items"]
+    for y in 0..4:
+        for x in 0..10:
+            var found = false
+            for item in node:
+                if item[1].getFloat == x.float and item[2].getFloat == y.float:
+                    found = true
+                    break
+            if not found:
+                return (x,y)
+    return (-1, -1)
 
+proc inventoryIsFull*(ps: PlayerSave): bool =
+    ps.getFreeInventorySlot[0] == -1
