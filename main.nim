@@ -647,55 +647,58 @@ proc giveItem(p: PlayerSave, name: string, amount: int = 1) =
     node.add(%*[db.itemID(name).float,x.float,y.float,amount.float,0.0,nil,nil])
 
 proc usage() = 
-    echo "Usage: ", app.name, " [opts]"
-    echo ""
-    echo "Options:"
-    echo "      -get <category> <key> <value>          Find by category, key, value.  ex: -get craft_table Key working_table."
-    echo "                                             Wildcard * may be used."
-    echo "      -first                                 Limit results to the first found."
-    echo "      -exact                                 Require exact match unless wildcards are used."
-    echo "      -limit <limit>                         Limit results to the <limit> results."
-    echo "      -only <prop>                           Only show property/column <prop> as a simple list."
-    echo "      -enumerate                             Display number of results."
-    echo "      -language <language>                   Set language to <language>. Supports full names and codes."
-    echo "                                             There are also shorter convenience options like -spanish or -zhcn."
-    echo "      -clip                                  Copy output to the clipboard."
-    echo "      -saveimages [wikiicon|recipeicon]      Copy and rename icon images. Category specific folders and names will"
-    echo "                                             be used. If \"wikiicon\" is used, icons will be 16 px high (useful for"
-    echo "                                             wiki). If \"recipeicon\" is used, icons will be 16 px high and add recipe"
-    echo "                                             overlay."
-    echo "                                             wiki)."
-    echo "      -template <template>                   Use <template> in -get. The template names are based on files in the "
-    echo "                                             templates folder without the extension, for example \"npc_text\""
-    echo "                                             Note: templates are a work in progress and may change."
-    echo "      -backup                                Backup all worlds, players, user options, languages."
-    echo "      -extractworld <file>                   Extract all files from a world save <file>."
-    echo "      -extractworld <slot>                   Extract all files from a world save <slot>."
-    echo "      -buildworld <file>                     Rebuild a world from files and save to <file>."
-    echo "      -extractplayer <file>                  Extract all files from a player save <file>."
-    echo "      -extractplayer <slot>                  Extract all files from a player save <slot>."
-    echo "      -loadplayer <file>                     Load player save <file>."
-    echo "      -loadplayer <slot>                     Load player save <slot>."
-    echo "      -saveplayer                            Save loaded player."
-    echo "      -stripmods                             Attempt to strip mods from loaded player."
-    echo "      -sortshopitems                         Sort shop items for loaded player."
-    echo "      -cheat                                 Add cheats to loaded player."
-    echo "      -buildplayer <file>                    Rebuild a player from files and save to <file>."
-    echo "      -builddatabase                         Build database (tinkerlands.db). Takes a long time."
-    echo "      -output [<filename=output.txt>]        Write output to <filename>."
-    echo "      -clip                                  Copy output to the clipboard."
-    echo "      -console                               Open sqlite console."
-    echo "      -categories                            Show categories."
-    echo "  -h, -help                                  Show this help."
-    echo ""
-    echo "Examples:"
-    echo fmt"    {app.name} -get item blazon"
-    echo fmt"    {app.name} -get item type head body legs"
-    echo fmt"    {app.name} -backup"
-    echo fmt"    {app.name} -get item name Cangrejo -list -saveimages wikiicon -language Spanish"
-    echo fmt"    {app.name} -get item name crab -only name -output crab_items.txt"
+    print "Usage: ", app.name, " [opts]"
+    print ""
+    print "Options:"
+    print "      -get <category> <key> <value>          Find by category, key, value.  ex: -get craft_table Key working_table."
+    print "                                             Wildcard * may be used."
+    print "      -first                                 Limit results to the first found."
+    print "      -exact                                 Require exact match unless wildcards are used."
+    print "      -limit <limit>                         Limit results to the <limit> results."
+    print "      -only <prop>                           Only show property/column <prop> as a simple list."
+    print "      -enumerate                             Display number of results."
+    print "      -language <language>                   Set language to <language>. Supports full names and codes."
+    print "                                             There are also shorter convenience options like -spanish or -zhcn."
+    print "      -clip                                  Copy output to the clipboard."
+    print "      -saveimages [wikiicon|recipeicon]      Copy and rename icon images. Category specific folders and names will"
+    print "                                             be used. If \"wikiicon\" is used, icons will be 16 px high (useful for"
+    print "                                             wiki). If \"recipeicon\" is used, icons will be 16 px high and add recipe"
+    print "                                             overlay."
+    print "                                             wiki)."
+    print "      -template <template>                   Use <template> in -get. The template names are based on files in the "
+    print "                                             templates folder without the extension, for example \"npc_text\""
+    print "                                             Note: templates are a work in progress and may change."
+    print "      -backup                                Backup all worlds, players, user options, languages."
+    print "      -extractworld <file>                   Extract all files from a world save <file>."
+    print "      -extractworld <slot>                   Extract all files from a world save <slot>."
+    print "      -buildworld <file>                     Rebuild a world from files and save to <file>."
+    print "      -extractplayer <file>                  Extract all files from a player save <file>."
+    print "      -extractplayer <slot>                  Extract all files from a player save <slot>."
+    print "      -loadplayer <file>                     Load player save <file>."
+    print "      -loadplayer <slot>                     Load player save <slot>."
+    print "      -saveplayer <file>                     Save loaded player to <file>"
+    print "      -saveplayer <slot>                     Save loaded player to <slot>"
+    print "      -randomizelook                         Randomize name and customization for loaded player."
+    print "      -give (<item> | [<amount>] <item>)...  Give items to loaded player."
+    print "      -stripmods                             Attempt to strip mods from loaded player."
+    print "      -sortshopitems                         Sort shop items for loaded player."
+    print "      -cheat                                 Add cheats to loaded player."
+    print "      -buildplayer <file>                    Rebuild a player from files and save to <file>."
+    print "      -builddatabase                         Build database (tinkerlands.db). Takes a long time."
+    print "      -output [<filename=output.txt>]        Write output to <filename>."
+    print "      -clip                                  Copy output to the clipboard."
+    print "      -console                               Open sqlite console."
+    print "      -categories                            Show categories."
+    print "  -h, -help                                  Show this help."
+    print ""
+    print "Examples:"
+    print fmt"    {app.name} -get item blazon"
+    print fmt"    {app.name} -get item type head body legs"
+    print fmt"    {app.name} -backup"
+    print fmt"    {app.name} -get item name Cangrejo -list -saveimages wikiicon -language Spanish"
+    print fmt"    {app.name} -get item name crab -only name -output crab_items.txt"
     
-    echo ""
+    print ""
     quit()
 
 when isMainModule:
@@ -894,9 +897,28 @@ when isMainModule:
         player = loadPlayer(filename)
         player.slot = playerNum
         
-#        print player["name"]
-#        print player["hpMax"]
-#        print player["mpMax"]
+    if options.hasOpt("randomizelook"):
+        player["customization"]["skin"] = % rand(0..<4)
+        player["customization"]["underwear"] = % rand(0..<3)
+        player["customization"]["hair"] = % rand(0..<26)
+        player["customization"]["hairColor"] = % rand(0xffffff)
+        
+        if rand(1) == 0:
+            player["name"] = % sample(maleNames)
+            player["customization"]["voice"] = % 0.0
+            player["customization"]["hair"] = % sample([0, 1, 2, 4, 7, 8, 9, 10, 11, 12, 13, 14, 16, 20, 21, 22, 23, 24]).float
+            player["customization"]["underwear"] = % sample([0, 2]).float
+        else:
+            player["name"] = % sample(femaleNames)
+            player["customization"]["voice"] = % 1.0
+            player["customization"]["hair"] = % sample([3, 5, 6, 15, 17, 18, 19, 25]).float
+            player["customization"]["underwear"] = % sample([1, 2]).float
+        
+        # skin 1/4
+        # underwear 1/3
+        # voice 1/2
+        # hair type 1/26
+        # hair color 16751104.0 (ff9a00) bgr
         
         print fmt"""
         Name:       {player["name"].getStr}
@@ -910,26 +932,6 @@ when isMainModule:
         Hair Color: {player["customization"]["hairColor"]} ({player["customization"]["hairColor"].getFloat.int:x})
         """.dedent
         
-        # skin 1/4
-        # underwear 1/3
-        # voice 1/2
-        # hair type 1/26
-        # hair color 16751104.0 (ff9a00) bgr
-        
-    if options.hasOpt("randomizelook"):
-        player["customization"]["skin"] = % rand(0..<4)
-        player["customization"]["underwear"] = % rand(0..<3)
-#        player["customization"]["voice"] = % rand(0..<2)
-        player["customization"]["hair"] = % rand(0..<26)
-        player["customization"]["hairColor"] = % rand(0xffffff)
-        
-        if rand(1) == 0:
-            player["name"] = % sample(maleNames)
-            player["customization"]["voice"] = % 0.0
-        else:
-            player["name"] = % sample(femaleNames)
-            player["customization"]["voice"] = % 1.0
-        
     
     if options.hasOpt("stripmods"):
         player.stripMods
@@ -937,6 +939,7 @@ when isMainModule:
     if options.hasOpt("sortshopitems"):
         player.sortShopItems
     
+    # -give 999 "wooden torch" 10 rock leaf stick
     if options.hasOpt("give"):
         let opt = options.getOpt("give")
         
@@ -957,30 +960,20 @@ when isMainModule:
         player["speedUpgrade01"] = true
         player["speedUpgrade02"] = true
     
-        var node = player.data[5]["items"]
-        
-#        player.giveItem("Legendary Blazon")
-#        player.giveItem("Rare Candy", 42)
-#        player.giveItem("Wood")
-#        player.giveItem("Stick")
-#        player.giveItem("Rock")
-#        player.giveItem("Leaf")
-#        player.giveItem("Wooden Torch", 999)
-        
-        for item in splitQ("""99 "Wooden Torch" Rock 14 Wood 100 "Rare Candy" Leaf Stick 10 Rock"""):
-            var amount = 1
-            if item.isDecimal:
-                amount = item.parseInt
-            else:
-                player.giveItem(item, amount)
-                amount = 1
-        
-        echo node
-#        echo db.createItem("Legendary Blazon", 1)
-        # 1 Legendary Moonlight Claws (Haste level 100) locked
-    
     if options.hasOpt("saveplayer"):
-        player.save
+        let opt = options.getOpt("saveplayer")
+        
+        if opt.len == 0:
+            player.save
+        else:
+            var filename = opt[0]
+            var playerNum = 0
+            
+            if filename in ["1","2","3","4"]:
+                playerNum = filename.parseInt
+                filename = cfg.get("saveFolder") / "players" / fmt"savegame0{playerNum}.player"
+
+            player.save(filename)
     
     if options.hasOpt("test3"):
         let t = db.getData("item", "Key", "accesory_teeth")[0]
@@ -989,40 +982,6 @@ when isMainModule:
         
         for k,v in pairs(t):
             print fmt"{k:<31}__{k}__"
-    
-    if options.hasOpt("test2"):
-        
-        let t = db.getData("npc", "Key", "blacksmith")[0]
-#        let t = db.getData("item", "Key", "accesory_legendary_blazon")[0]
-        
-        db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet", "Equipped Armor", "Equipped Legs")
-        
-        # expand furniture to get the item instead of interactable
-        if t.hasKey("Furniture Required"):
-            for item in t["Furniture Required"]:
-                db.expandItems(item, "Item")
-        
-#        echo t.pretty
-#        var text = loadTemplate("npc_text")
-        var text = loadTemplate("npc_wiki")
-        var node = t
-        
-        resolveTemplate(text, node)
-        
-        print text
-        
-#            Item Pool, Loot, Soul Loot, Loot Hard Difficulty
-#                key, chance, min, max, db folder
-#            Mob Pool Day, Mob Pool Night
-#                key, chance
-#            Fish, Fish Chests
-#                key, chance
-#            Shop
-#                key, db folder
-#            Recipe
-#                key, amount
-#            Likes, Dislikes, Buff List
-#                key
     
     if options.hasOpt("builddatabase"):
         let start = getMonoTime()

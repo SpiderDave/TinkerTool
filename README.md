@@ -7,6 +7,7 @@ TinkerTool is a command line tool for use with TinkerLands.
 * Extract, format and rename images from Tinkerlands Modding Tool sprites.
 * Extract and rebuild world save files.
 * Extract and rebuild player save files.
+* Various edits to player save files.
 
 # Setup
 1. Extract TinkerTool to a folder.
@@ -18,7 +19,7 @@ TinkerTool is a command line tool for use with TinkerLands.
 7. Set "dbFolder" to the location of the "db" folder inside the Mod Tool's folder.
 8. Set "spritesFolder" to the location of the "sprites" folder inside the Mod Tool's folder.
 9. Run "CMD Prompt Here.cmd" found in TinkerTool's folder.
-10. Now we build the database. This takes a long time but you only have to do it once. In the cmd prompt we opened type:
+10. Now we build the database. This takes a very long time but you only have to do it once. In the cmd prompt we opened type:
 ```
 tinkertool -builddatabase
 ```
@@ -28,9 +29,10 @@ See usage.txt for details.
 
 ## Examples
 ```
-tinkertool -get item name "legendary blazon"
-tinkertool -get item type map -list
-tinkertool -get item all -saveimages -makeicon -list
-tinkertool -backup
+TinkerTool -get item blazon
+TinkerTool -get item type head body legs
+TinkerTool -backup
+TinkerTool -get item name Cangrejo -list -saveimages wikiicon -language Spanish
+TinkerTool -get item name crab -only name -output crab_items.txt
 ```
 
