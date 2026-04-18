@@ -18,6 +18,174 @@ type
 
   SetterProc* = proc(ps: var PlayerSave, value: JsonNode)
 
+const StorageSlot* = {
+    "head":         (index: 3, x: 0, y: 0),
+    "body":         (index: 3, x: 0, y: 1),
+    "legs":         (index: 3, x: 0, y: 2),
+    "accessory1":   (index: 3, x: 1, y: 0),
+    "accessory2":   (index: 3, x: 1, y: 1),
+    "accessory3":   (index: 3, x: 1, y: 2),
+    "accessory4":   (index: 3, x: 2, y: 0),
+    "accessory5":   (index: 3, x: 2, y: 1),
+    "accessory6":   (index: 3, x: 2, y: 2),
+    "ammo1":        (index: 3, x: 3, y: 0),
+    "ammo2":        (index: 3, x: 3, y: 1),
+    "ammo3":        (index: 3, x: 3, y: 2),
+    "vanityhead":   (index: 3, x: 4, y: 0),
+    "vanitybody":   (index: 3, x: 4, y: 1),
+    "vanitylegs":   (index: 3, x: 4, y: 2),
+    "coin1":        (index: 3, x: 5, y: 0),
+    "coin2":        (index: 3, x: 5, y: 1),
+    "coin3":        (index: 3, x: 5, y: 2),
+    "coin4":        (index: 3, x: 6, y: 0),
+    "pet":          (index: 3, x: 6, y: 2),
+    "hook":         (index: 3, x: 7, y: 0),
+    "mount":        (index: 3, x: 7, y: 1),
+    
+    "astralbox1":   (index: 4, x: 0, y: 0),
+    "astralbox2":   (index: 4, x: 1, y: 0),
+    "astralbox3":   (index: 4, x: 2, y: 0),
+    "astralbox4":   (index: 4, x: 3, y: 0),
+    "astralbox5":   (index: 4, x: 4, y: 0),
+    
+    "astralbox6":   (index: 4, x: 0, y: 1),
+    "astralbox7":   (index: 4, x: 1, y: 1),
+    "astralbox8":   (index: 4, x: 2, y: 1),
+    "astralbox9":   (index: 4, x: 3, y: 1),
+    "astralbox10":   (index: 4, x: 4, y: 1),
+    
+    "astralbox11":   (index: 4, x: 0, y: 2),
+    "astralbox12":   (index: 4, x: 1, y: 2),
+    "astralbox13":   (index: 4, x: 2, y: 2),
+    "astralbox14":   (index: 4, x: 3, y: 2),
+    "astralbox15":   (index: 4, x: 4, y: 2),
+    
+    "astralbox16":   (index: 4, x: 0, y: 3),
+    "astralbox17":   (index: 4, x: 1, y: 3),
+    "astralbox18":   (index: 4, x: 2, y: 3),
+    "astralbox19":   (index: 4, x: 3, y: 3),
+    "astralbox20":   (index: 4, x: 4, y: 3),
+    
+    "astralbox21":   (index: 4, x: 0, y: 4),
+    "astralbox22":   (index: 4, x: 1, y: 4),
+    "astralbox23":   (index: 4, x: 2, y: 4),
+    "astralbox24":   (index: 4, x: 3, y: 4),
+    "astralbox25":   (index: 4, x: 4, y: 4),
+    
+    "astralbox26":   (index: 4, x: 0, y: 5),
+    "astralbox27":   (index: 4, x: 1, y: 5),
+    "astralbox28":   (index: 4, x: 2, y: 5),
+    "astralbox29":   (index: 4, x: 3, y: 5),
+    "astralbox30":   (index: 4, x: 4, y: 5),
+    
+    "hotbar1":      (index: 5, x: 0, y: 0),
+    "hotbar2":      (index: 5, x: 1, y: 0),
+    "hotbar3":      (index: 5, x: 2, y: 0),
+    "hotbar4":      (index: 5, x: 3, y: 0),
+    "hotbar5":      (index: 5, x: 4, y: 0),
+    "hotbar6":      (index: 5, x: 5, y: 0),
+    "hotbar7":      (index: 5, x: 6, y: 0),
+    "hotbar8":      (index: 5, x: 7, y: 0),
+    "hotbar9":      (index: 5, x: 8, y: 0),
+    "hotbar10":     (index: 5, x: 9, y: 0),
+
+    "inventory1":   (index: 5, x: 0, y: 1),
+    "inventory2":   (index: 5, x: 1, y: 1),
+    "inventory3":   (index: 5, x: 2, y: 1),
+    "inventory4":   (index: 5, x: 3, y: 1),
+    "inventory5":   (index: 5, x: 4, y: 1),
+    "inventory6":   (index: 5, x: 5, y: 1),
+    "inventory7":   (index: 5, x: 6, y: 1),
+    "inventory8":   (index: 5, x: 7, y: 1),
+    "inventory9":   (index: 5, x: 8, y: 1),
+    "inventory10":  (index: 5, x: 9, y: 1),
+    "inventory11":  (index: 5, x: 10, y: 1),
+    
+    "inventory12":  (index: 5, x: 0, y: 2),
+    "inventory13":  (index: 5, x: 1, y: 2),
+    "inventory14":  (index: 5, x: 2, y: 2),
+    "inventory15":  (index: 5, x: 3, y: 2),
+    "inventory16":  (index: 5, x: 4, y: 2),
+    "inventory17":  (index: 5, x: 5, y: 2),
+    "inventory18":  (index: 5, x: 6, y: 2),
+    "inventory19":  (index: 5, x: 7, y: 2),
+    "inventory20":  (index: 5, x: 8, y: 2),
+    "inventory21":  (index: 5, x: 9, y: 2),
+    "inventory22":  (index: 5, x: 10, y: 2),
+    
+    "inventory23":  (index: 5, x: 0, y: 3),
+    "inventory24":  (index: 5, x: 1, y: 3),
+    "inventory25":  (index: 5, x: 2, y: 3),
+    "inventory26":  (index: 5, x: 3, y: 3),
+    "inventory27":  (index: 5, x: 4, y: 3),
+    "inventory28":  (index: 5, x: 5, y: 3),
+    "inventory29":  (index: 5, x: 6, y: 3),
+    "inventory30":  (index: 5, x: 7, y: 3),
+    "inventory31":  (index: 5, x: 8, y: 3),
+    "inventory32":  (index: 5, x: 9, y: 3),
+    "inventory33":  (index: 5, x: 10, y: 3),
+    
+    "inventory34":  (index: 5, x: 0, y: 4),
+    "inventory35":  (index: 5, x: 1, y: 4),
+    "inventory36":  (index: 5, x: 2, y: 4),
+    "inventory37":  (index: 5, x: 3, y: 4),
+    "inventory38":  (index: 5, x: 4, y: 4),
+    "inventory39":  (index: 5, x: 5, y: 4),
+    "inventory40":  (index: 5, x: 6, y: 4),
+    "inventory41":  (index: 5, x: 7, y: 4),
+    "inventory42":  (index: 5, x: 8, y: 4),
+    "inventory43":  (index: 5, x: 9, y: 4),
+    "inventory44":  (index: 5, x: 10, y: 4),
+}.toTable
+
+let Affixes* = {
+    1: "Useless",
+    2: "Deteriorated",
+    3: "Old",
+    4: "Slow",
+    5: "Fast",
+    6: "Powerful",
+    7: "Overpowered",
+    8: "Legendary",
+    9: "Lucky",
+    10: "Critical",
+    11: "Beast",
+    12: "Compressed",
+    13: "Brutal",
+    14: "Bloody",
+    15: "Deadly",
+    16: "Swift",
+    17: "Rapid",
+    18: "Hurricane",
+    19: "Smart",
+    20: "Blessed",
+    21: "Spiritual",
+    22: "Mystic",
+    23: "Arcane",
+    24: "Ethereal",
+    25: "Enlightened",
+    26: "Mystical",
+    27: "Enduring",
+    28: "Energetic",
+    29: "Vigorous",
+    30: "Vital",
+    31: "Fierce",
+    32: "Destructive",
+    33: "Savage",
+    34: "Merciless",
+    35: "Sturdy",
+    36: "Guarded",
+    37: "Unbreakable",
+    38: "Fortified",
+    39: "Lightning",
+    40: "Frenzied",
+    41: "Turbo",
+    42: "Blazing",
+#    0: "Solid",
+#    0: "Hard",
+#    0: "Heavy",
+}.toTable
+
 # --- Setters table ---
 var setters*: Table[string, SetterProc] = initTable[string, SetterProc]()
 
@@ -33,6 +201,8 @@ proc setField*(ps: var PlayerSave, idx: int, field: string, value: JsonNode) =
 # --- Register normal field setter ---
 setters["maxHp"] = proc(ps: var PlayerSave, value: JsonNode) =
   setField(ps, 2, "hpMax", value)
+setters["maxMp"] = proc(ps: var PlayerSave, value: JsonNode) =
+  setField(ps, 2, "mpMax", value)
 
 # --- Register cheats setter with arbitrary side effects ---
 setters["cheats"] = proc(ps: var PlayerSave, value: JsonNode) =
@@ -400,6 +570,31 @@ proc buildPlayer*(saveFile: string) =
     writeFile(saveFile, lines.join("\r\n"))
     echo fmt"wrote {saveFile}"
 
+proc getItemInSlot*(p: PlayerSave, slot: string): JsonNode =
+    let slot = StorageSlot[slot]
+    var node = p.data[slot.index]["items"]
+    
+    if node.kind == JArray:
+        for item in node.elems:
+            if item[1].getFloat == slot.x.float and item[2].getFloat == slot.y.float:
+                return item
+    return newJNull()
+
+proc updatePlayerVisuals*(p: var PlayerSave, slot: string, index: int) =
+    let node = p.getItemInSlot(slot)
+    if node.kind == JNull:
+        p.data[index] = % -1
+    else:
+        p.data[index] = % node[0].getFloat.int
+
+proc updatePlayerVisuals*(p: var PlayerSave) =
+    p.updatePlayerVisuals("head", 6)
+    p.updatePlayerVisuals("body", 7)
+    p.updatePlayerVisuals("legs", 8)
+    p.updatePlayerVisuals("vanityhead", 9)
+    p.updatePlayerVisuals("vanitybody", 10)
+    p.updatePlayerVisuals("vanitylegs", 11)
+
 proc loadPlayer*(saveFile: string): PlayerSave =
     var index = 0
     var version = 0
@@ -432,7 +627,7 @@ proc loadPlayer*(saveFile: string): PlayerSave =
         
         inc index
 
-proc save*(ps: PlayerSave, saveFile: string) =
+proc save*(ps: var PlayerSave, saveFile: string) =
     let version = ps.version
     var useVersion = version
     var lines: seq[string] = @[]
@@ -442,6 +637,8 @@ proc save*(ps: PlayerSave, saveFile: string) =
         dec useVersion
         if useVersion <= 0:
             quit fmt"Could not process save version {version}."
+    
+    ps.updatePlayerVisuals
     
     for i in 0..<ps.data.len:
         if saveFormat[useVersion][i] == "json":
@@ -456,9 +653,23 @@ proc save*(ps: PlayerSave, saveFile: string) =
     writeFile(saveFile, lines.join("\r\n"))
     echo fmt"wrote {saveFile}"
 
-proc save*(ps: PlayerSave) =
+proc save*(ps: var PlayerSave) =
     let filename = fmt"savegame0{ps.slot}.player.new" / ""
     ps.save(filename)
+
+proc equipItem*(p: PlayerSave, id: int, slot: string, amount: int = 1) =
+    let slot = StorageSlot[slot]
+    var node = p.data[slot.index]["items"]
+    
+    # remove any item in that slot
+    if node.kind == JArray:
+        node.elems = node.elems.filterIt(
+            it.kind == JArray and (
+                not (it[1].getFloat == slot.x.float and it[2].getFloat == slot.y.float)
+            )
+        )
+    
+    node.add(%*[id.float,slot.x.float,slot.y.float,amount.float,0.0,nil,nil])
 
 proc stripFromItems(node: var JsonNode) =
     if node.kind == JArray:
@@ -572,3 +783,73 @@ proc getFreeInventorySlot*(ps: PlayerSave): tuple[x, y: int] =
 
 proc inventoryIsFull*(ps: PlayerSave): bool =
     ps.getFreeInventorySlot[0] == -1
+
+var upgrades = %* {
+    "upgrades": %* {
+        "lifeFlower": %* {
+          "level": % 0.0,
+          "ID": % 1.0
+        },
+        "manaFlower": %* {
+          "level": % 0.0,
+          "ID": % 2.0
+        },
+        "defenseFlower": %* {
+          "level": % 0.0,
+          "ID": % 3.0
+        },
+        "dashUpgrade01": %* {
+          "level": % false,
+          "ID": % 4.0
+        },
+        "dashUpgrade02": %* {
+          "level": % false,
+          "ID": % 5.0
+        },
+        "speedUpgrade01": %* {
+          "level": % false,
+          "ID": % 6.0
+        },
+    }
+}
+for i in 0..19:
+    upgrades["upgrades"][fmt"dictionary{i:02}"] = %* {
+      "level": % false,
+      "ID": % float(7+i)
+    }
+
+proc setUpgradeDefaultKey(p: PlayerSave, key: string): bool =
+    if not p.data[12]["upgrades"].hasKey(key):
+        if upgrades["upgrades"].hasKey(key):
+            p.data[12]["upgrades"][key] = upgrades["upgrades"][key].copy()
+        else:
+            return false
+    return true
+
+
+proc setUpgrade*(p: PlayerSave, key: string, value: bool = true) =
+    if not p.setUpgradeDefaultKey(key):
+        echo fmt"Could not set upgrade {key}"
+        return
+    
+    if key in ["dashUpgrade01", "dashUpgrade02", "speedUpgrade01", "speedUpgrade02"]:
+        p.data[12][key] = % value
+    
+    p.data[12]["upgrades"][key]["level"] = % value
+
+proc setUpgrade*(p: PlayerSave, key: string, value: int = 1) =
+    if not p.setUpgradeDefaultKey(key):
+        echo fmt"Could not set upgrade {key}"
+        return
+    
+    var v = value
+    
+    if key == "lifeFlower":
+        # recalculate life
+        v = min(v, 18)
+        p.data[2]["hpMax"] = % float(40 + 20 * v)
+    if key == "manaFlower":
+        # recalculate mana
+        v = min(v, 9)
+        p.data[2]["mpMax"] = % float(20 + 20 * v)
+    p.data[12]["upgrades"][key]["level"] = % v.float

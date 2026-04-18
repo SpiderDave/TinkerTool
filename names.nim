@@ -51,5 +51,5 @@ var femaleNames*: seq[string] = @[
     "Nadia", "Natalie", "Nina", "Olivia", "Paige", "Patricia", "Rachel", "Rebecca",
     "Renee", "Rose", "Sabrina", "Samantha", "Sara", "Sarah", "Savannah", "Selena",
     "Sophie", "Stella", "Tara", "Taylor", "Vanessa", "Veronica", "Victoria",
-    "Violet", "Vivian", "Wendy", "Whitney", "Yvonne", "Zoe"
+    "Violet", "Vivian", "Wendy", "Whitney", "Yvonne"
 ]

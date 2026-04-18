@@ -578,6 +578,19 @@ proc getData(db: DbConn, queryString: string): JsonNode =
         t.add(node)
     return t
 
+proc getItem(db: DbConn, name: string): JsonNode =
+    db.getData("item", "name_localized", name)[0]
+
+proc getItem(db: DbConn, node: JsonNode): JsonNode =
+    if node.kind == JNull:
+         return newJNull()
+    let id = $node[0].getFloat.int
+    let data = db.getData("item", "id", id)
+    if data.len == 0:
+        return % fmt"(unknown item {id})"
+    else:
+        return data[0]
+
 proc itemId(db: DbConn, name: string): int =
     let t = %* []
     let where = fmt"""    "name_localized" = "{name}" COLLATE NOCASE"""
@@ -596,6 +609,32 @@ proc itemId(db: DbConn, name: string): int =
         t.add(node)
     
     return t[0]["ID"].getStr.parseInt
+
+# get affix layout, like %ItemAffix% %ItemName%
+proc getAffixLayout(db: DbConn): string =
+    let queryString = fmt"""
+    SELECT text FROM translations
+    WHERE key = "K_GENERAL_AFFIX_LAYOUT"
+    AND lang = "{language}";
+    """
+    var rows = db.get(queryString.sql)
+    rows[0]["text"]
+
+# Get localized affix name from affix base name
+proc getAffix(db: DbConn, affix: string): string =
+    let queryString = fmt"""
+    SELECT text FROM translations
+    WHERE key = "K_ITEM_AFFIX_{affix.toUpperAscii}_NEUTRAL"
+    AND lang = "{language}";
+    """
+    var rows = db.get(queryString.sql)
+    rows[0]["text"]
+
+# get localized affix name from id
+proc getAffix[T: SomeNumber](db: DbConn, affixId: T): string =
+    if Affixes.hasKey(affixId.int):
+        return db.getAffix(Affixes[affixId.int])
+    return ""
 
 # format search string
 # ^ match start of string
@@ -646,6 +685,53 @@ proc giveItem(p: PlayerSave, name: string, amount: int = 1) =
     var node = p.data[5]["items"]
     node.add(%*[db.itemID(name).float,x.float,y.float,amount.float,0.0,nil,nil])
 
+proc equipItem(p: PlayerSave, name, slot: string, amount: int = 1) =
+    p.equipItem(db.itemID(name), slot, amount)
+
+proc randomHairColor*(): float =
+    const natural = [
+        # Blacks / very dark
+        0x0A0A0A, 0x0F1214, 0x14191E,
+        # Dark browns
+        0x192332, 0x1E283C, 0x233246, 0x283750,
+        # Browns
+        0x283C5A, 0x2D4164, 0x32466E, 0x374B78, 0x3C5082,
+        # Light browns
+        0x415A8C, 0x465F96, 0x4B64A0, 0x5069AA,
+        # Dark blondes
+        0x5578B4, 0x5A82BE, 0x5F8CC8,
+        # Blondes
+        0x6496D2, 0x69A0DC, 0x6EAAD6, 0x73B4F0,
+        # Light blondes
+        0x78BEF5, 0x82C8FA,
+        # Auburn / reddish browns
+        0x28326E, 0x283782, 0x283C96, 0x2D41AA,
+        # Reds / ginger
+        0x2846B4, 0x2850C8, 0x2D5ADC, 0x3264F0
+    ]
+
+    const rare = [
+        # Grays
+        0x2A2A2A, 0x444444, 0x666666, 0x888888, 0xAAAAAA, 0xCCCCCC,
+        # White / near-white
+        0xE0E0E0, 0xF0F0F0,
+        # Unnatural colors (kept somewhat muted)
+        # Greens
+        0x205020, 0x2A6A2A, 0x3C8C3C,
+        # Blues
+        0x502020, 0x6A2A2A, 0x8C3C3C,
+        # Purples
+        0x502050, 0x6A2A6A, 0x8C3C8C,
+        # Pinkish
+        0x7070C0, 0x9090D0
+    ]
+
+    # ~8% chance to pick from rare pool
+    if rand(0.0..1.0) < 0.08:
+        return float(rare[rand(rare.len - 1)])
+
+    return float(natural[rand(natural.len - 1)])
+
 proc usage() = 
     print "Usage: ", app.name, " [opts]"
     print ""
@@ -678,17 +764,21 @@ proc usage() =
     print "      -loadplayer <slot>                     Load player save <slot>."
     print "      -saveplayer <file>                     Save loaded player to <file>"
     print "      -saveplayer <slot>                     Save loaded player to <slot>"
+    print "      -summary                               Show a summary of loaded player."
     print "      -randomizelook                         Randomize name and customization for loaded player."
     print "      -give (<item> | [<amount>] <item>)...  Give items to loaded player."
+    print "      -equip ([<amount>] <item> <slot>)...   Equip items in slot for loaded player."
     print "      -stripmods                             Attempt to strip mods from loaded player."
     print "      -sortshopitems                         Sort shop items for loaded player."
     print "      -cheat                                 Add cheats to loaded player."
     print "      -buildplayer <file>                    Rebuild a player from files and save to <file>."
     print "      -builddatabase                         Build database (tinkerlands.db). Takes a long time."
     print "      -output [<filename=output.txt>]        Write output to <filename>."
+    print "      -code                                  Special formatting for script category."
     print "      -clip                                  Copy output to the clipboard."
     print "      -console                               Open sqlite console."
     print "      -categories                            Show categories."
+    print "       -mods (on|off|list)                   Turn mods on or off, by renaming mods folder between \"mods\" and \"_mods\"."
     print "  -h, -help                                  Show this help."
     print ""
     print "Examples:"
@@ -845,21 +935,6 @@ when isMainModule:
         print "Done."
         quit()
     
-    if options.hasOpt("test") and cfg.getBool("debug"):
-    
-        var text = """
-        The quick
-        brown fox
-        jumps over
-        the lazy
-        dog.
-        """
-        
-        echo text.removeFirstLine
-        
-#        echo text
-    
-    
     if options.hasOpt("sortshopitems"):
         let filename = "data/player/output.13.json"
         var node = parseJson(readFile(filename))
@@ -874,6 +949,43 @@ when isMainModule:
         echo app.releaseTag
         quit()
     
+    if options.hasOpt("mods"):
+        var opt = options.getOpt("mods")
+        if opt.len == 0: opt = @["list"]
+        
+        let modsFolder = cfg.get("steamFolder") / "mods"
+        let modsFolderOff = cfg.get("steamFolder") / "_mods"
+        
+        if opt[0] == "off":
+            if dirExists(modsFolder) and not dirExists(modsFolderOff):
+                moveDir(modsFolder, modsFolderOff)
+                print("Mods off.")
+            elif dirExists(modsFolderOff):
+                print("Mods are already off.")
+        elif opt[0] == "on":
+            if dirExists(modsFolderOff) and not dirExists(modsFolder):
+                moveDir(modsFolderOff, modsFolder)
+                print("Mods on.")
+            elif dirExists(modsFolder):
+                print("Mods are already on.")
+        elif opt[0] == "list":
+            var n = 0
+            print("Active mods:")
+            if dirExists(modsFolder):
+                for kind, path in walkDir(modsFolder):
+                    case kind:
+                    of pcFile:
+                        print("    " & path.splitPath.tail)
+                        n += 1
+                    of pcDir:
+                        discard
+                    else:
+                        discard
+            else:
+                discard
+            if n == 0:
+                print("    None.")
+        
     # ----------------------------------------------
     # from here commands should require the database
     # ----------------------------------------------
@@ -886,6 +998,13 @@ when isMainModule:
     
     db = open(cfg.get("dbFile"), "", "", "")
     
+    if options.hasOpt("test") and cfg.getBool("debug"):
+        print db.getAffixLayout
+        print db.getAffix("legendary")
+        print db.getAffix(5)
+        print db.getAffix(6.0)
+        
+    
     if options.hasOpt("loadplayer"):
         var filename = options.getOpt("loadplayer")[0]
         var playerNum = 0
@@ -897,11 +1016,130 @@ when isMainModule:
         player = loadPlayer(filename)
         player.slot = playerNum
         
+    if options.hasOpt("summary"):
+        proc itemName(slot: string): string =
+            var name: string
+            let item = player.getItemInSlot(slot)
+            var itemData = db.getItem(item)
+            if itemData.kind == JNull:
+                return "(empty)"
+            if itemData.kind == JString:
+                name = itemData.getStr
+            else:
+                name = itemData["Name"].getStr
+                
+                if name == "Recipe":
+                    itemData = db.getData("recipe", "id", $item[5]["recipeID"].getFloat)
+                    let key = itemData[0]["Product"].getStr.replace("E_ITEMS.","")
+                    itemData = db.getData("item", "key", key)
+                    name = itemData[0]["Name"].getStr
+                    name = fmt"{name} (Recipe)"
+                
+                let amount = item[3].getFloat.int
+                if amount > 1:
+                    name = fmt"{amount} {name}"
+            
+            let affix = db.getAffix(item[4].getFloat)
+            if affix != "":
+                return db.getAffixLayout.replace("%ItemAffix%", affix).replace("%ItemName%", name)
+            return name
+        
+        proc getEnchant(item: JsonNode): string =
+            if item.kind == JNull:
+                return ""
+            
+            if item[5].kind == JObject and item[5].hasKey("enchant") and item[5]["enchant"].kind == JObject:
+                let id = item[5]["enchant"]["enchantID"].getFloat.int
+                let level = item[5]["enchant"]["level"].getFloat.int
+                let t = db.getData("enchant", "ID", $id)[0]
+                let name = t["Name"].getStr
+                let maxLevel = t["Max Level"].getStr
+                return fmt"{name} lvl {level}/{maxLevel}"
+            return ""
+        
+        print fmt"""
+        ----------------------------------------
+        Player Slot {player.slot}
+        ----------------------------------------
+        
+        Name:       {player["name"].getStr}
+        
+        Max HP:     {player["hpMax"].getFloat.int}
+        Max MP:     {player["mpMax"].getFloat.int}
+        Defense:    {player["defense"].getFloat.int}
+        Skin:       {player["customization"]["skin"].getFloat.int}
+        Underwear:  {player["customization"]["underwear"].getFloat.int}
+        Voice:      {player["customization"]["voice"].getFloat.int}
+        Hair:       {player["customization"]["hair"].getFloat.int}
+        Hair Color: {player["customization"]["hairColor"].getFloat.int} ({player["customization"]["hairColor"].getFloat.int:x})
+        """.dedent
+        
+        proc printItem(slot: string) =
+            let name = slot.itemName
+            if name != "(empty)":
+                print("    ", name)
+                let enchant = player.getItemInSlot(slot).getEnchant
+                if enchant != "":
+                    print("        ", enchant)
+        
+        print("Vanity:")
+        printItem("vanityhead")
+        printItem("vanitybody")
+        printItem("vanitylegs")
+        print("Armor:")
+        printItem("head")
+        printItem("body")
+        printItem("legs")
+        print("Accessories:")
+        printItem("accessory1")
+        printItem("accessory2")
+        printItem("accessory3")
+        printItem("accessory4")
+        printItem("accessory5")
+        printItem("accessory6")
+        print("Ammo:")
+        printItem("ammo1")
+        printItem("ammo2")
+        printItem("ammo3")
+        print("Pet:")
+        printItem("pet")
+        print("Mount:")
+        printItem("mount")
+        print("Hook:")
+        printItem("hook")
+        print("Hotbar:")
+        printItem("hotbar1")
+        printItem("hotbar2")
+        printItem("hotbar3")
+        printItem("hotbar4")
+        printItem("hotbar5")
+        printItem("hotbar6")
+        printItem("hotbar7")
+        printItem("hotbar8")
+        printItem("hotbar9")
+        printItem("hotbar10")
+
+        print("Inventory:")
+        for i in 1..44:
+            printItem(fmt"inventory{i}")
+
+        print("Coins:")
+        printItem("coin1")
+        printItem("coin2")
+        printItem("coin3")
+        printItem("coin4")
+        
+        print("Astral Box:")
+        for i in 1..30:
+            printItem(fmt"astralbox{i}")
+        
+        
     if options.hasOpt("randomizelook"):
-        player["customization"]["skin"] = % rand(0..<4)
+        player["customization"]["skin"] = % sample([0, 0, 0, 1, 1, 2, 3]).float
         player["customization"]["underwear"] = % rand(0..<3)
         player["customization"]["hair"] = % rand(0..<26)
-        player["customization"]["hairColor"] = % rand(0xffffff)
+#        player["customization"]["hairColor"] = % rand(0xffffff)
+        player["customization"]["hairColor"] = % randomHairColor()
         
         if rand(1) == 0:
             player["name"] = % sample(maleNames)
@@ -920,18 +1158,17 @@ when isMainModule:
         # hair type 1/26
         # hair color 16751104.0 (ff9a00) bgr
         
-        print fmt"""
-        Name:       {player["name"].getStr}
-        Max HP:     {player["hpMax"]}
-        Max MP:     {player["mpMax"]}
-        Defense:    {player["defense"]}
-        Skin:       {player["customization"]["skin"]}
-        Underwear:  {player["customization"]["underwear"]}
-        Voice:      {player["customization"]["voice"]}
-        Hair:       {player["customization"]["hair"]}
-        Hair Color: {player["customization"]["hairColor"]} ({player["customization"]["hairColor"].getFloat.int:x})
-        """.dedent
-        
+#        print fmt"""
+#        Name:       {player["name"].getStr}
+#        Max HP:     {player["hpMax"]}
+#        Max MP:     {player["mpMax"]}
+#        Defense:    {player["defense"]}
+#        Skin:       {player["customization"]["skin"]}
+#        Underwear:  {player["customization"]["underwear"]}
+#        Voice:      {player["customization"]["voice"]}
+#        Hair:       {player["customization"]["hair"]}
+#        Hair Color: {player["customization"]["hairColor"]} ({player["customization"]["hairColor"].getFloat.int:x})
+#        """.dedent
     
     if options.hasOpt("stripmods"):
         player.stripMods
@@ -950,15 +1187,38 @@ when isMainModule:
             else:
                 player.giveItem(item, amount)
                 amount = 1
+    # -equip 999 "wooden torch" ammo1 "legendary blazon" accessory6
+    if options.hasOpt("equip"):
+        let opt = options.getOpt("equip")
+        var amount = 1
+        var slot = ""
+        var itemName = ""
+        for item in opt:
+            if item.isDecimal:
+                amount = item.parseInt
+            elif StorageSlot.hasKey(item):
+                slot = item
+            else:
+                itemName = item
+            
+            if slot != "" and itemName != "":
+                print(fmt"equip {amount} {itemName} in {slot}")
+                player.equipItem(itemName, slot, amount)
+                amount = 1
+                itemName = ""
+                slot = ""
     
     if options.hasOpt("cheat"):
-        player["defense"] = 10000.0
-        player["mpMax"] = 1000.0
-        player["maxHp"] = 5000.0
-        player["dashUpgrade01"] = true
-        player["dashUpgrade02"] = true
-        player["speedUpgrade01"] = true
-        player["speedUpgrade02"] = true
+        player.setUpgrade("lifeFlower", 18)
+        player.setUpgrade("manaFlower", 9)
+        player.setUpgrade("defenseFlower", 10)
+        
+        player.setUpgrade("dashUpgrade01", true)
+        player.setUpgrade("dashUpgrade02", true)
+        player.setUpgrade("speedUpgrade01", true)
+        
+        for i in 0..19:
+            player.setUpgrade(fmt"dictionary{i:02}", true)
     
     if options.hasOpt("saveplayer"):
         let opt = options.getOpt("saveplayer")
@@ -972,7 +1232,6 @@ when isMainModule:
             if filename in ["1","2","3","4"]:
                 playerNum = filename.parseInt
                 filename = cfg.get("saveFolder") / "players" / fmt"savegame0{playerNum}.player"
-
             player.save(filename)
     
     if options.hasOpt("test3"):
@@ -1067,8 +1326,6 @@ when isMainModule:
                     for item in t["Furniture Required"]:
                         db.expandItems(item, "Item")
                 
-                echo "test"
-                
                 var text = loadTemplate(options.getOpt("template")[0])
                 var node = t
                 
@@ -1104,6 +1361,10 @@ when isMainModule:
             else:
                 if options.hasOpt("only"):
                     discard
+                elif options.hasOpt("code"):
+                    print "//--------------------------------------------------"
+                    print fmt"""// {row["ID"]} {row["Key"]}"""
+                    print "//--------------------------------------------------"
                 elif row.hasKey("Name") and row.hasKey("ID"):
                     print "----------------------------------------"
                     print fmt"""{row["ID"]} {row["Name"]}"""
@@ -1113,22 +1374,46 @@ when isMainModule:
                     print fmt"""{row["ID"]} {row["Key"]}"""
                     print "----------------------------------------"
                 
-                for col, value in row.pairs:
-                    if value == "":
-                        discard
-                    elif "_localized" in col or "_unlocalized" in col:
-                        discard
-                    else:
-                        if options.hasOpt("only"):
-                            if value in allValues:
-                                discard
-                            elif col.toLowerAscii == options.getOpt("only")[0].toLowerAscii:
-                                allValues.incl(value)
-                                print fmt"{value}"
-                                nItems += 1
+                if options.hasOpt("code"):
+                    if row.hasKey("Code"):
+                        var text = row["Code"]
+                        # normalize line breaks and rstrip each line
+                        text = text.normalizeLines
+                        # tabs to spaces
+#                        text = text.replace("\t", "    ")
+                        # escaped newlines to real newlines
+                        text = text.replace("\\n", "\n")
+                        # replace #$# with commas (end of line)
+                        text = text.replace("#$#\n", ",\n")
+                        # replace #$# and a space with comma and space
+                        text = text.replace("#$# ", ", ")
+                        # replace #$# with commas
+                        text = text.replace("#$#", ", ")
+                        # replace %$% with "
+                        text = text.replace("%$%", "\"")
+                        # normalize again after end of line marker handling
+                        text = text.normalizeLines
+                        
+                        text = text.normalizeGml
+
+                        print(text)
+                else:
+                    for col, value in row.pairs:
+                        if value == "":
+                            discard
+                        elif "_localized" in col or "_unlocalized" in col:
+                            discard
                         else:
-                            print fmt"{col:<31} {value}"
-                            nItems += 1
+                            if options.hasOpt("only"):
+                                if value in allValues:
+                                    discard
+                                elif col.toLowerAscii == options.getOpt("only")[0].toLowerAscii:
+                                    allValues.incl(value)
+                                    print fmt"{value}"
+                                    nItems += 1
+                            else:
+                                print fmt"{col:<31} {value}"
+                                nItems += 1
                 if options.hasOpt("only"):
                     discard
                 else:
