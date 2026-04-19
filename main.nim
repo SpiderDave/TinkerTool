@@ -214,9 +214,9 @@ proc buildDatabase(db: DbConn) =
         else:
             discard
 
-    db.execSqlFile("queries/blacklist.sql")
-    db.execSqlFile("queries/replace.sql")
-    db.execSqlFile("queries/createIndexes.sql")
+#    db.execSqlFile("queries/blacklist.sql")
+#    db.execSqlFile("queries/replace.sql")
+#    db.execSqlFile("queries/createIndexes.sql")
 
 proc buildLanguages(db: DbConn) =
     echo "Building Translations..."
@@ -401,12 +401,12 @@ proc makeImage(fromFile, toFile: string, w, h: var int) =
 
 # output like echo but captures to printOutput too
 proc print(args: varargs[string, `$`]) = 
-  for arg in args:
-    printOutput &= arg
-    stdout.write arg
-  stdout.write "\n"
-  stdout.flushFile()
-  printOutput &= "\n"
+    for arg in args:
+        printOutput &= arg
+        stdout.write arg
+    stdout.write "\n"
+    stdout.flushFile()
+    printOutput &= "\n"
 
 proc defaultAppOutput() =
     echo app.info
@@ -515,8 +515,6 @@ proc expandItems(db: DbConn, itemString: string): JsonNode =
         if cfg.getBool("replace") == false:
             queryString = queryString.replace("COALESCE(en_replacename.name, ", "COALESCE(")
         
-#        echo queryString
-        
         var rows = db.get(queryString.sql)
         
         for row in rows:
@@ -525,11 +523,6 @@ proc expandItems(db: DbConn, itemString: string): JsonNode =
                     if row["Key"] == item["key"].getStr:
                         item["data"] = % row
                         t2.add(% row)
-#    echo where
-    
-#    let query_getMobNameFromKey = readFile("queries/getMobNameFromKey.sql")
-#    queryString = queryString.replace("__column__", key)
-    
     return t2
 
 # Expand multiple item lists in a given Json Node
@@ -1138,7 +1131,6 @@ when isMainModule:
         player["customization"]["skin"] = % sample([0, 0, 0, 1, 1, 2, 3]).float
         player["customization"]["underwear"] = % rand(0..<3)
         player["customization"]["hair"] = % rand(0..<26)
-#        player["customization"]["hairColor"] = % rand(0xffffff)
         player["customization"]["hairColor"] = % randomHairColor()
         
         if rand(1) == 0:
@@ -1152,24 +1144,6 @@ when isMainModule:
             player["customization"]["hair"] = % sample([3, 5, 6, 15, 17, 18, 19, 25]).float
             player["customization"]["underwear"] = % sample([1, 2]).float
         
-        # skin 1/4
-        # underwear 1/3
-        # voice 1/2
-        # hair type 1/26
-        # hair color 16751104.0 (ff9a00) bgr
-        
-#        print fmt"""
-#        Name:       {player["name"].getStr}
-#        Max HP:     {player["hpMax"]}
-#        Max MP:     {player["mpMax"]}
-#        Defense:    {player["defense"]}
-#        Skin:       {player["customization"]["skin"]}
-#        Underwear:  {player["customization"]["underwear"]}
-#        Voice:      {player["customization"]["voice"]}
-#        Hair:       {player["customization"]["hair"]}
-#        Hair Color: {player["customization"]["hairColor"]} ({player["customization"]["hairColor"].getFloat.int:x})
-#        """.dedent
-    
     if options.hasOpt("stripmods"):
         player.stripMods
     
@@ -1248,6 +1222,11 @@ when isMainModule:
         db.buildDatabase()
         echo "Adding languages to db..."
         db.buildLanguages()
+        echo "building blacklist, replace data, and indexes..."
+        db.execSqlFile("queries/blacklist.sql")
+        db.execSqlFile("queries/replace.sql")
+        db.execSqlFile("queries/createIndexes.sql")
+        
         let elapsed = getMonoTime() - start
         echo "Elapsed: ", elapsed.pretty
 
