@@ -6,10 +6,125 @@ import
     std/json,
     std/macros
 
+import regex        # nimble install regex
+
+import expr_eval
+
 type
   Formatter* = proc(args: varargs[string]): string
 
 proc `*` (s: string; n: Natural): string = repeat(s, n)
+
+
+type
+    RegexOp* = enum
+        match,
+        sub
+
+    RegexFlags* = object
+        global*: bool
+        ignoreCase*: bool
+        multiLine*: bool
+        dotAll*: bool
+        extended*: bool
+        eval*: bool
+
+    RegexExpr* = object
+        op*: RegexOp
+        delim*: char
+        pattern*: string
+        replacement*: string
+        flags*: RegexFlags
+
+proc toRegexFlags*(f: RegexFlags): set[RegexFlag] =
+    result = {}
+
+    if f.ignoreCase:
+        result.incl(regexCaseless)
+
+    if f.multiLine:
+        result.incl(regexMultiline)
+
+    if f.dotAll:
+        result.incl(regexDotAll)
+
+    if f.extended:
+        result.incl(regexExtended)
+
+    # usually not needed in RE2-style engines, but included for completeness
+    if f.eval:
+        discard
+
+    # global is NOT a compile flag in RE2-style replace APIs
+    # it is handled at call-site, not here
+
+proc parseFlags*(s: string): RegexFlags =
+    for c in s:
+        case c
+        of 'g': result.global = true
+        of 'i': result.ignoreCase = true
+        of 'm': result.multiLine = true
+        of 's': result.dotAll = true
+        of 'x': result.extended = true
+        of 'e': result.eval = true
+        else: discard
+
+
+proc parseUntilDelim(s: string; start: int; delim: char): tuple[text: string, next: int] =
+    var i = start
+    var buffer = newStringOfCap(32)
+
+    while i < s.len:
+        let c = s[i]
+
+        if c == '\\':
+            if i + 1 >= s.len:
+                raise newException(ValueError, "Trailing escape")
+            buffer.add(s[i + 1])
+            i += 2
+
+        elif c == delim:
+            return (buffer, i + 1)
+
+        else:
+            buffer.add(c)
+            inc i
+
+    raise newException(ValueError, "Unterminated expression section")
+
+proc parseRegexExpr*(input: string): RegexExpr =
+    if input.len == 0:
+        raise newException(ValueError, "Empty input")
+
+    var i = 0
+
+    # operator
+    if input[0] == 's':
+        result.op = sub
+        inc i
+    else:
+        result.op = match
+
+    if i >= input.len:
+        raise newException(ValueError, "Missing delimiter")
+
+    result.delim = input[i]
+    inc i
+
+    # pattern
+    let patternResult = parseUntilDelim(input, i, result.delim)
+    result.pattern = patternResult.text
+    i = patternResult.next
+
+    # replacement (only for substitution)
+    if result.op == sub:
+        let replacementResult = parseUntilDelim(input, i, result.delim)
+        result.replacement = replacementResult.text
+        i = replacementResult.next
+
+    # flags
+    if i < input.len:
+        result.flags = parseFlags(input[i..^1])
 
 # ----------------------------------------
 # Formatters
@@ -44,6 +159,11 @@ proc money(args: varargs[string]): string =
         return "0 Copper"
 
     result = parts.join(" ")
+
+proc calc(args: varargs[string]): string =
+    let value = args[0]
+    var expr = args[1]
+    evalExpr(expr, value)
 
 # Field.pad:<20
 proc pad(args: varargs[string]): string =
@@ -111,7 +231,9 @@ var formatters*: Table[string, Formatter] = {
     "money": Formatter(money),
     "once": Formatter(once),
 #    "stripCodes": Formatter(text),
+    "calc": Formatter(calc),
     "text": Formatter(text)
+    
 }.toTable()
 
 # ----------------------------------------
@@ -320,5 +442,18 @@ proc resolveTemplate*(text: var string, node: var JsonNode) =
             let scrubText = postText.split("__scrub__")[1].split("__end scrub__")[0]
             text = text.replace(scrubText, "")
             postText = postText.replace("__scrub__" & scrubText & "__end scrub__", "")
+        elif "__re:" in postText:
+            let reText = postText.split("__re:")[1].split("__")[0]
+            let expr = parseRegexExpr(reText)
+            
+            if expr.op == sub:
+                if expr.flags.global:
+                    text = replace(text, expr.pattern.re2(expr.flags.toRegexFlags), expr.replacement)
+                else:
+                    text = replace(text, expr.pattern.re2(expr.flags.toRegexFlags), expr.replacement, limit=1)
+            
+            let pos = postText.find("__re:")
+            let pos2 = postText.find("__", pos+5)
+            postText = postText[0..<pos] & postText[pos2+2..<postText.len]
         else:
             break

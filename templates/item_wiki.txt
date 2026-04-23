@@ -1,0 +1,51 @@
+{{Item infobox
+| name=__Name__
+| type=__Type__
+| damagetype=__Damage Type__
+| damage=__Damage__
+| crit=__Crit Chance__
+| tool=__Power__
+| axe=__Axe Damage__
+| pickaxe=__Pickaxe Damage__
+| speed=__Speed__
+| knockback=__Knockback__
+| fishingmastery=__Fishing Mastery__
+| manause=__Mana Consumption__
+| hp=__HP__
+| powerrequired=__Power Required__
+| buy=__Buy.money__
+| sell=__Sell.money__
+| description=__Description__
+| material=__Material__
+| stack=__Quantity Max__
+| itemid=__ID__
+| droptier=__Drop Text Color__
+}}
+
+[[category:__Type__]]
+[[category:item]]
+__end template__
+
+__re:s!\\| .*?=\\n!!gi__                    remove all empty parameters like description=
+__re:s/\\n\\| stack=1//gi__                 remove all stack=1
+__re:s/\\n\\| droptier=Normal//gi__         remove all droptier=Normal
+__re:s/%verb_quick_heal%/Q/gi__             replace all %verb_quick_heal% with Q
+__re:s!/n!<br>!gi__                         replace all /n with <br>
+__re:s!E_.*?\\.!!g__                        remove all db prefixes like E_DAMAGE_TYPE.
+__re:s!category:head!category:armor!gi__    simplify category for head/body/legs to armor
+__re:s!category:body!category:armor!gi__    simplify category for head/body/legs to armor
+__re:s!category:legs!category:armor!gi__    simplify category for head/body/legs to armor
+
+todo:
+    - handle page categories
+    - make sure all parameters work
+    - dropped by
+    - sold by
+    - crafting
+    - cooking
+    - chest loot information
+    - determine if material
+    - determine if sell parameter is valid
+    - set descriptions
+    - remove parameters based on type and other factors
+

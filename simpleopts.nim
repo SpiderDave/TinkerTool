@@ -90,6 +90,7 @@ proc hasOpt*(o: Opts, name1: string, name2 = ""): bool =
         return true
     return false
 
+# accepts two names to allow for an alias
 proc getOpt*(o: Opts, name1: string, name2 = ""): seq[string] =
     if o.options.hasKey(name1):
         return o.options[name1]
