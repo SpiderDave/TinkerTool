@@ -1,4 +1,5 @@
 import
+    std/os,
     std/strformat,
     std/strutils,
     std/sequtils,
@@ -294,7 +295,13 @@ proc normalizeLines(s: string, newline = "\n"): string =
 # ----------------------------------------
 
 proc loadTemplate*(templateName: string): string =
-    readFile(fmt"templates/" & templateName & ".txt").normalizeLines
+    if fileExists(fmt"templates/" & templateName & ".txt"):
+        return readFile(fmt"templates/" & templateName & ".txt").normalizeLines
+    
+    # files starting with _ are not included in package (local/test stuff)
+    if fileExists(fmt"templates/_" & templateName & ".txt"):
+        return readFile(fmt"templates/_" & templateName & ".txt").normalizeLines
+    return ""
 
 proc resolveChainSimple(text: var string, node: var JsonNode) =
     if node.kind == JObject:

@@ -34,6 +34,8 @@ import
     names,
     util
 
+import luastuff
+
 var language = "English"
 
 const app: App = App(
@@ -400,13 +402,12 @@ proc makeImage(fromFile, toFile: string, w, h: var int) =
     image2.writeFile(toFile)
 
 # output like echo but captures to printOutput too
-proc print(args: varargs[string, `$`]) = 
-    for arg in args:
-        printOutput &= arg
-        stdout.write arg
-    stdout.write "\n"
+proc print(args: varargs[string, `$`], sep=" ", endLine = "\n") = 
+    printOutput &= args.join(sep)
+    stdout.write args.join(sep)
+    stdout.write endLine
     stdout.flushFile()
-    printOutput &= "\n"
+    printOutput &= endLine
 
 proc defaultAppOutput() =
     echo app.info
@@ -462,6 +463,43 @@ proc getLanguage(options: Opts):string =
 #        }
 #        t.add(node)
 #    return t
+
+proc getData(db: DbConn, cat, key, value: string): JsonNode =
+    let t = %* []
+    let where = fmt"""    "{key}" = "{value}" COLLATE NOCASE"""
+    
+    var queryString: string
+    if fileExists(fmt"queries/{cat}.sql"):
+        queryString = readFile(fmt"queries/{cat}.sql")
+    else:
+        queryString = readFile(fmt"queries/default.sql")
+        queryString = queryString.replace("__category__", cat)
+    queryString = queryString.replace("__language__", language)
+    queryString = queryString.replace("__where__", where)
+    
+    if cfg.getBool("replace") == false:
+        queryString = queryString.replace("COALESCE(en_replacename.name, ", "COALESCE(")
+    
+    var rows = db.get(queryString.sql)
+    
+    for row in rows:
+        var node = %* {}
+        for col, value in row.pairs:
+            node[col] = % $value
+        t.add(node)
+    return t
+
+proc getData(db: DbConn, queryString: string): JsonNode =
+    let t = %* []
+    
+    var rows = db.get(queryString.sql)
+    
+    for row in rows:
+        var node = %* {}
+        for col, value in row.pairs:
+            node[col] = % $value
+        t.add(node)
+    return t
 
 # Expand item list to a Json Node
 # Uses database to fill data
@@ -525,6 +563,27 @@ proc expandItems(db: DbConn, itemString: string): JsonNode =
                         t2.add(% row)
     return t2
 
+proc expandTexts(db: DbConn, itemString: string): JsonNode =
+    # [[lang(LK.K_NPC_DIALOGUE_TRAVELLING_MERCHANT_01)],[lang(LK.K_NPC_DIALOGUE_TRAVELLING_MERCHANT_02)]]
+    var t = %* []
+    
+    var keys = itemString[1..<itemString.len-1]
+    
+    keys = keys.replace("[lang(LK.","'")
+    keys = keys.replace(")]","'")
+    
+    let queryString = fmt"""
+    SELECT text FROM translations
+    WHERE key in ({keys})
+    AND lang = "{language}";
+    """
+    var rows = db.get(queryString.sql)
+    
+    for row in rows:
+        t.add(% row["text"])
+    
+    return t
+
 # Expand multiple item lists in a given Json Node
 # Example:
 #   db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required")
@@ -532,44 +591,10 @@ proc expandItems(db: DbConn, jObj: JsonNode, keys: varargs[string]) =
     for key in keys:
         if jObj.hasKey(key):
             jObj[key & "_unexpanded"] = jObj[key]
-            jObj[key] = db.expandItems(jObj[key].getStr)
-
-proc getData(db: DbConn, cat, key, value: string): JsonNode =
-    let t = %* []
-    let where = fmt"""    "{key}" = "{value}" COLLATE NOCASE"""
-    
-    var queryString: string
-    if fileExists(fmt"queries/{cat}.sql"):
-        queryString = readFile(fmt"queries/{cat}.sql")
-    else:
-        queryString = readFile(fmt"queries/default.sql")
-        queryString = queryString.replace("__category__", cat)
-    queryString = queryString.replace("__language__", language)
-    queryString = queryString.replace("__where__", where)
-    
-    if cfg.getBool("replace") == false:
-        queryString = queryString.replace("COALESCE(en_replacename.name, ", "COALESCE(")
-    
-    var rows = db.get(queryString.sql)
-    
-    for row in rows:
-        var node = %* {}
-        for col, value in row.pairs:
-            node[col] = % $value
-        t.add(node)
-    return t
-
-proc getData(db: DbConn, queryString: string): JsonNode =
-    let t = %* []
-    
-    var rows = db.get(queryString.sql)
-    
-    for row in rows:
-        var node = %* {}
-        for col, value in row.pairs:
-            node[col] = % $value
-        t.add(node)
-    return t
+            if key == "Texts":
+                jObj[key] = db.expandTexts(jObj[key].getStr)
+            else:
+                jObj[key] = db.expandItems(jObj[key].getStr)
 
 proc getItem(db: DbConn, name: string): JsonNode =
     db.getData("item", "name_localized", name)[0]
@@ -992,10 +1017,34 @@ when isMainModule:
     db = open(cfg.get("dbFile"), "", "", "")
     
     if options.hasOpt("test") and cfg.getBool("debug"):
-        print db.getAffixLayout
-        print db.getAffix("legendary")
-        print db.getAffix(5)
-        print db.getAffix(6.0)
+#        db.getData("item", "name_localized", name)[0]
+        let data = db.getData("item", "name_localized", "Swamp Floor")
+        
+#        proc luaFormatter(text: string): string =
+        
+        
+        luaExec("""
+        plugin = require "lua/plugins/test"
+        plugin.data = {}
+        plugin.text = ""
+        """)
+        
+        for item in data:
+            luaExec(fmt"""
+            plugin.data[#plugin.data+1] = json.decode([=====[{item}]=====])
+            """)
+        luaExec("""
+        if plugin.init then plugin:init() end
+        if plugin.build then plugin:build() end
+        if plugin.post then plugin:post() end
+        """)
+
+        echo luaEval("return plugin.text")
+        
+#        print db.getAffixLayout
+#        print db.getAffix("legendary")
+#        print db.getAffix(5)
+#        print db.getAffix(6.0)
         
     
     if options.hasOpt("loadplayer"):
@@ -1297,23 +1346,54 @@ when isMainModule:
                 print queryString
             
             if options.hasOpt("template"):
+                var rowIndex = 0
                 for t in db.getData(queryString):
-    #            let t = db.getData(queryString)[0]
-                    db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet", "Equipped Armor", "Equipped Legs")
+                    db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet", "Equipped Armor", "Equipped Legs", "Texts")
                 
                     # expand furniture to get the item instead of interactable
                     if t.hasKey("Furniture Required"):
                         for item in t["Furniture Required"]:
                             db.expandItems(item, "Item")
                     
-                    var text = loadTemplate(options.getOpt("template")[0])
-                    var node = t
+                    if t.hasKey("Shop"):
+                        for item in t["Shop"]:
+                            db.expandItems(item, "Product")
                     
-                    resolveTemplate(text, node)
+                    let templateName = options.getOpt("template")[0]
                     
-                    print text
+                    var text = loadTemplate(templateName)
+                    if text != "":
+                        var node = t
+                        
+                        resolveTemplate(text, node)
+                        
+                        print text
+                    elif fileExists(fmt"lua/plugins/" & templateName & ".lua"):
+                        luaExec(fmt"""
+                        plugin = require("lua/plugins/{templateName}")
+                        plugin.text = ""
+                        plugin.sep = plugin.sep or " "
+                        plugin.endLine = plugin.endLine or "\n\n"
+                        plugin.data = json.decode([===[{t}]===])
+                        if plugin.init then plugin:init() end
+                        if plugin.build then plugin:build() end
+                        if plugin.post then plugin:post() end
+                        """)
+                        
+                        let sep = luaEval("return plugin.sep")
+                        let endLine = luaEval("return plugin.endLine")
+                        
+                        print(luaEval("return plugin.text"), sep=sep, endLine=endLine)
+                    
+                    rowIndex += 1
+                    if options.hasOpt("first"):
+                        break
+                    if options.hasOpt("limit"):
+                        let limit = parseInt(options.getOpt("limit")[0])
+                        if rowIndex+1 > limit:
+                            break
+                
                 break blockGet
-#                quit()
             
             var rows = db.get(queryString.sql)
             
