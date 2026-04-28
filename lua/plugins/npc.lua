@@ -3,24 +3,6 @@ local plugin = {
     endLine = "\n"
 }
 
-local money = function(text)
-    if not text then return "?" end
-    
-    local value = tonumber(text)
-    local coins = {"Plat", "Gold", "Silver", "Copper"}
-    local ret = ""
-    
-    for i, v in ipairs(coins) do
-        local n = math.floor(value / (100^(4-i)) % 100)
-        if n > 0 then
-            ret = ret .. string.format("%s %s ", n, v)
-        end
-    end
-    ret = util.trim(ret)
-    
-    return ret
-end
-
 function plugin:build()
     local npc = self.data
 
@@ -66,7 +48,7 @@ function plugin:build()
         text = text .. string.format('| rowspan = "%s" | {{npc|name=%s}}\n', #npc.Shop, npc.Name)
         for i,item in pairs(npc.Shop) do
             if i~=1 then text = text.. "|-\n" end
-            local price = money(item.Buy)
+            local price = formatMoney(item.Buy)
             if item.Product then
                 item.Name = string.format("%s (Recipe)", item.Product[1].Name)
                 price = "1 Gold"

@@ -464,9 +464,13 @@ proc getLanguage(options: Opts):string =
 #        t.add(node)
 #    return t
 
-proc getData(db: DbConn, cat, key, value: string): JsonNode =
+proc getData(db: DbConn, cat, key, value, where: string): JsonNode =
     let t = %* []
-    let where = fmt"""    "{key}" = "{value}" COLLATE NOCASE"""
+    
+#    if where == "":
+#        where = fmt"""    "{key}" = "{value}" COLLATE NOCASE"""
+    
+#    let where = fmt"""    "{key}" = "{value}" COLLATE NOCASE"""
     
     var queryString: string
     if fileExists(fmt"queries/{cat}.sql"):
@@ -488,6 +492,10 @@ proc getData(db: DbConn, cat, key, value: string): JsonNode =
             node[col] = % $value
         t.add(node)
     return t
+
+proc getData(db: DbConn, cat, key, value: string): JsonNode =
+    let where = fmt"""    "{key}" = "{value}" COLLATE NOCASE"""
+    db.getData(cat, key, value, where)
 
 proc getData(db: DbConn, queryString: string): JsonNode =
     let t = %* []
@@ -596,8 +604,8 @@ proc expandItems(db: DbConn, jObj: JsonNode, keys: varargs[string]) =
             else:
                 jObj[key] = db.expandItems(jObj[key].getStr)
 
-proc getItem(db: DbConn, name: string): JsonNode =
-    db.getData("item", "name_localized", name)[0]
+#proc getItem(db: DbConn, name: string): JsonNode =
+#    db.getData("item", "name_localized", name)[0]
 
 proc getItem(db: DbConn, node: JsonNode): JsonNode =
     if node.kind == JNull:
@@ -1348,16 +1356,36 @@ when isMainModule:
             if options.hasOpt("template"):
                 var rowIndex = 0
                 for t in db.getData(queryString):
-                    db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet", "Equipped Armor", "Equipped Legs", "Texts")
+                    db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet",
+                    "Equipped Armor", "Equipped Legs", "Texts", "Build Block", "Enchant", "Set Requirements")
                 
                     # expand furniture to get the item instead of interactable
                     if t.hasKey("Furniture Required"):
                         for item in t["Furniture Required"]:
                             db.expandItems(item, "Item")
                     
+                    if t.hasKey("Type") and t["Type"].getStr == "Crafting Table":
+                        db.expandItems(t["Build Block"][0], "Crafting Table")
+                        # need this check for forgotten altar fake working table item
+                        if t["Build Block"][0]["Crafting Table"].elems.len > 0:
+                            db.expandItems(t["Build Block"][0]["Crafting Table"][0], "Item List")
+                            for item in t["Build Block"][0]["Crafting Table"][0]["Item List"]:
+                                db.expandItems(item, "Product", "Recipe")
+                    
                     if t.hasKey("Shop"):
                         for item in t["Shop"]:
                             db.expandItems(item, "Product")
+                    
+                    if cat == "item":
+                        let itemKey = t["Key"].getStr
+                        let w = fmt"""    l.key = "{itemKey}" COLLATE NOCASE"""
+                        let recipeData = db.getData("recipebyitem", "l.Key", t["Key"].getStr, w)
+                        for recipe in recipeData:
+                            db.expandItems(recipe, "Craft Table", "Product", "Recipe")
+                            if recipe.hasKey("Craft Table") and recipe["Craft Table"].len > 0:
+                                let node = recipe["Craft Table"][0]
+                                db.expandItems(node, "Item")
+                        t["crafts"] = recipeData
                     
                     let templateName = options.getOpt("template")[0]
                     

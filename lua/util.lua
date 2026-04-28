@@ -1,5 +1,7 @@
 local util = {}
 
+local _print = _print or print
+
 util.unpack = table.unpack or unpack
 
 function util.writeToFile(path, data)
@@ -98,6 +100,13 @@ function util.copyFile(fromFile, toFile)
     end
 end
 
+function util.contains(t, value)
+    for _, v in pairs(t) do
+        if v == value then return true end
+    end
+    return false
+end
+
 function util.anyIn(t, values)
     for _, v in ipairs(values) do
         for _, v2 in pairs(t) do
@@ -142,10 +151,26 @@ function util.printable(v)
     elseif type(v) == "function" then
         return "function()"
     elseif type(v) == "table" then
-        return "\n" .. util.printTable(v, 2)
+        return "\n{\n" .. util.printTable(v, 1) .. "}"
     else
         return string.format("(%s)", type(v))
     end
+end
+
+function util.print(...)
+    local out = ""
+    local args = {...}
+    
+    for i, v in ipairs({...}) do
+        if i>1 then out = out .. " " end
+        out = out .. util.printable(v)
+    end
+    
+    _print(out)
+end
+
+function util.printf(...)
+    _print(string.format(...))
 end
 
 function util.choose(t, allKeys)

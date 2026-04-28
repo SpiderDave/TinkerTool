@@ -1,3 +1,6 @@
+-- This one searches items but then it gives recipe results.
+-- The item will be either found in recipe.Recipe or recipe.Product
+
 -- Create a single-row CTE that holds the language parameter.
 WITH lang(value) AS (
     SELECT "__language__"
@@ -46,19 +49,16 @@ localized AS (
 )
 
 -- Final selection with localized search
-SELECT
-    *,
-    name_localized AS Name,
-    gender_localized AS Gender,
-    description_localized AS Description,
-    "Set Description_localized" AS "Set Description",
-    name as Name_unlocalized,
-    description as Description_unlocalized,
-    gender as Gender_unlocalized,
-    "Set Description" as "Set Description_unlocalized"
-
+SELECT DISTINCT
+    recipe.*
+    
 FROM
-    localized
+    recipe
+    
+JOIN localized l
+  ON recipe.'Recipe' LIKE '%E_ITEMS.' || l.'Key' || ',%'
+  OR recipe.'Product' = 'E_ITEMS.' || l.'Key'
+    
     
 WHERE
     __where__
@@ -66,8 +66,8 @@ WHERE
     AND NOT EXISTS (
         SELECT 1
         FROM blacklist b
-        WHERE b.category = 'item'
-          AND b.id = localized.id
+        WHERE b.category = 'recipe'
+          AND b.id = recipe.id
     )
 ;
 

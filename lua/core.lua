@@ -11,7 +11,15 @@ type = function(v)
     end
 end
 
--- includes
-json=require "json"
-util=require "util"
-ordered=require "orderedtable"
+json = require "json"
+util = require "util"
+
+_print = print
+print = util.print
+printf = util.printf
+choose = util.choose
+
+ordered = require "orderedtable"
+require "plugins.common"
+
+string.replace = replace
