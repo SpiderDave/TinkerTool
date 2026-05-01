@@ -127,6 +127,11 @@ function util.startsWith(haystack, needle)
     return (haystack:find(needle, 1, true) == 1)
 end
 
+function util.endsWith(haystack, needle)
+    return haystack:sub(-#needle) == needle
+end
+
+
 function util.printTable(t, indent)
     local out = ""
     indent = indent or 0
