@@ -57,7 +57,7 @@ function plugin:build()
             text = text.. string.format("| {{item|name=%s}} || {{money|%s}}\n", item.Name, price)
             if i==1 then
                 local availability = "Always available"
-                if npc.Name == "The Travelling Merchant" then availability = "Randomly available" end
+                if npc.Name == "The Travelling Merchant" or npc.Name == "Michael" then availability = "Randomly available" end
                 
                 text = text .. string.format('| rowspan = "%s" | %s\n', #npc.Shop, availability)
             end

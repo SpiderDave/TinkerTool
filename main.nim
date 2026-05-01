@@ -216,10 +216,6 @@ proc buildDatabase(db: DbConn) =
         else:
             discard
 
-#    db.execSqlFile("queries/blacklist.sql")
-#    db.execSqlFile("queries/replace.sql")
-#    db.execSqlFile("queries/createIndexes.sql")
-
 proc buildLanguages(db: DbConn) =
     echo "Building Translations..."
     
@@ -402,7 +398,14 @@ proc makeImage(fromFile, toFile: string, w, h: var int) =
     image2.writeFile(toFile)
 
 # output like echo but captures to printOutput too
-proc print(args: varargs[string, `$`], sep=" ", endLine = "\n") = 
+proc print(args: varargs[string, `$`]) = 
+    printOutput &= args.join(" ")
+    stdout.write args.join(" ")
+    stdout.write "\n"
+    stdout.flushFile()
+    printOutput &= "\n"
+
+proc printSpecial(args: varargs[string, `$`], sep=" ", endLine = "\n") = 
     printOutput &= args.join(sep)
     stdout.write args.join(sep)
     stdout.write endLine
@@ -1030,7 +1033,6 @@ when isMainModule:
         
 #        proc luaFormatter(text: string): string =
         
-        
         luaExec("""
         plugin = require "lua/plugins/test"
         plugin.data = {}
@@ -1053,7 +1055,6 @@ when isMainModule:
 #        print db.getAffix("legendary")
 #        print db.getAffix(5)
 #        print db.getAffix(6.0)
-        
     
     if options.hasOpt("loadplayer"):
         var filename = options.getOpt("loadplayer")[0]
@@ -1127,7 +1128,7 @@ when isMainModule:
         proc printItem(slot: string) =
             let name = slot.itemName
             if name != "(empty)":
-                print("    ", name)
+                print("    ", name, " ")
                 let enchant = player.getItemInSlot(slot).getEnchant
                 if enchant != "":
                     print("        ", enchant)
@@ -1182,7 +1183,6 @@ when isMainModule:
         print("Astral Box:")
         for i in 1..30:
             printItem(fmt"astralbox{i}")
-        
         
     if options.hasOpt("randomizelook"):
         player["customization"]["skin"] = % sample([0, 0, 0, 1, 1, 2, 3]).float
@@ -1364,6 +1364,7 @@ when isMainModule:
                         for item in t["Furniture Required"]:
                             db.expandItems(item, "Item")
                     
+                    # expand crafting table stuff
                     if t.hasKey("Type") and t["Type"].getStr == "Crafting Table":
                         db.expandItems(t["Build Block"][0], "Crafting Table")
                         # need this check for forgotten altar fake working table item
@@ -1377,16 +1378,89 @@ when isMainModule:
                             db.expandItems(item, "Product")
                     
                     if cat == "item":
+                        # crafting
                         let itemKey = t["Key"].getStr
-                        let w = fmt"""    l.key = "{itemKey}" COLLATE NOCASE"""
-                        let recipeData = db.getData("recipebyitem", "l.Key", t["Key"].getStr, w)
+                        var w = fmt"""    l.key = "{itemKey}" COLLATE NOCASE"""
+                        let recipeData = db.getData("recipebyitem", "l.Key", itemKey, w)
                         for recipe in recipeData:
                             db.expandItems(recipe, "Craft Table", "Product", "Recipe")
                             if recipe.hasKey("Craft Table") and recipe["Craft Table"].len > 0:
                                 let node = recipe["Craft Table"][0]
-                                db.expandItems(node, "Item")
+                                db.expandItems(node, "Item", "Crafting Table")
+                                
+                                for r in recipe["Craft Table"][0]["Crafting Table"]:
+                                    db.expandItems(r, "Item List")
+                                
                         t["crafts"] = recipeData
+                        
+                        # sold by
+                        w = fmt"""    shop LIKE "%E_ITEMS.{itemKey},%" COLLATE NOCASE"""
+                        let shopData = db.getData("npc", "shop", fmt"E_ITEMS.{itemKey},", w)
+                        t["soldby"] = shopData
+                        
+                        # Dropped by
+                        let droppedBy = %* []
+                        
+                        # direct drops
+                        w = fmt"""    loot LIKE "%E_ITEMS.{itemKey},%" COLLATE NOCASE"""
+                        let dropData = db.getData("mob", "loot", fmt"E_ITEMS.{itemKey},", w)
+                        for mob in dropData:
+                            if mob["Codex Unlockable"].getStr == "TRUE":
+                                let mobName = mob["Name"].getStr
+                                
+                                if % mobName notin droppedBy:
+                                    droppedBy.add(% mobName)
+                        
+                        # item pool drops
+                        w = fmt"""    items LIKE "%E_ITEMS.{itemKey},%" COLLATE NOCASE"""
+                        let poolData = db.getData("item_pool", "items", fmt"E_ITEMS.{itemKey},", w)
+                        for pool in poolData:
+                            let poolKey = pool["Key"].getStr
+                            w = fmt"""    loot LIKE "%E_ITEM_POOLS.{poolKey},%" COLLATE NOCASE"""
+                            let dropData = db.getData("mob", "loot", fmt"E_ITEM_POOLS.{poolKey},", w)
+                            for mob in dropData:
+                                if mob["Codex Unlockable"].getStr == "TRUE":
+                                    let mobName = mob["Name"].getStr
+                                    
+                                    if % mobName notin droppedBy:
+                                        droppedBy.add(% mobName)
+                        
+                        t["droppedby"] = droppedBy
                     
+                        if t["Type"].getStr == "Fish" or " Fish" in t["Name"].getStr:
+                            let biomes = %* []
+                            
+                            w = fmt"""    loot LIKE "%E_ITEMS.{itemKey},%" COLLATE NOCASE"""
+                            let fishData = db.getData("fish", "loot", fmt"E_ITEMS.{itemKey},", w)[0]
+                            let fishKey = fishData["Key"].getStr
+                            
+                            w = fmt"""    fish LIKE "%E_FISHS.{fishKey},%" COLLATE NOCASE"""
+                            let biomeData = db.getData("biome", "fish", fmt"E_ITEMS.{fishKey},", w)
+                            
+                            for biome in biomeData:
+                                let biomeName = biome["Name"].getStr
+                                if % biomeName notin biomes and biomeName notin ["Ship"]:
+                                    biomes.add(% biomeName)
+
+                            fishData["biomes"] = biomes
+                            
+                            t["fish"] = fishData
+                        
+                        w = fmt"""    product = "E_ITEMS.{itemKey}" COLLATE NOCASE"""
+                        let cookingRecipe = db.getData("cook", "product", fmt"E_ITEMS.{itemKey}", w)
+                        for item in cookingRecipe:
+                            db.expandItems(item, "Ingredients", "Product")
+                        
+                        w = fmt"""    ingredients LIKE "%[E_ITEMS.{itemKey}]%" COLLATE NOCASE"""
+                        let cookingUsedToCook = db.getData("cook", "ingredients", fmt"[E_ITEMS.{itemKey}]", w)
+                        for item in cookingUsedToCook:
+                            db.expandItems(item, "Ingredients", "Product")
+                        
+                        t["cooking_recipe"] = cookingRecipe
+                        t["cooking_usedtocook"] = cookingUsedToCook
+                        
+#                        let fishKey = fishData["Key"].getStr
+                        
                     let templateName = options.getOpt("template")[0]
                     
                     var text = loadTemplate(templateName)
@@ -1411,7 +1485,7 @@ when isMainModule:
                         let sep = luaEval("return plugin.sep")
                         let endLine = luaEval("return plugin.endLine")
                         
-                        print(luaEval("return plugin.text"), sep=sep, endLine=endLine)
+                        printSpecial(luaEval("return plugin.text"), sep=sep, endLine=endLine)
                     
                     rowIndex += 1
                     if options.hasOpt("first"):

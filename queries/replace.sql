@@ -57,7 +57,17 @@ INSERT INTO replacelist VALUES("item", "358", "Teeth (accessory)");
     
 INSERT INTO replacelist VALUES("item", "433", "Witch Coat (unobtainable)");
 INSERT INTO replacelist VALUES("item", "434", "Witch Skirt (unobtainable)");
-    
+
+INSERT INTO replacelist VALUES("item", "697", "Flower (Red)");
+INSERT INTO replacelist VALUES("item", "698", "Flower (White)");
+INSERT INTO replacelist VALUES("item", "699", "Flower (Yellow)");
+INSERT INTO replacelist VALUES("item", "700", "Flower (Purple)");
+
+INSERT INTO replacelist VALUES("item", "701", "Flowerpot (Red)");
+INSERT INTO replacelist VALUES("item", "702", "Flowerpot (Yellow)");
+INSERT INTO replacelist VALUES("item", "703", "Flowerpot (White)");
+INSERT INTO replacelist VALUES("item", "704", "Flowerpot (Purple)");
+
 INSERT INTO replacelist VALUES("item", "868", "Ghostlands Table 1");
 INSERT INTO replacelist VALUES("item", "869", "Ghostlands Table 2");
 INSERT INTO replacelist VALUES("item", "870", "Ghostlands Big Table 1");

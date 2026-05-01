@@ -63,6 +63,10 @@ function util.split(s, delim, max)
     return t
 end
 
+function util.join(t, delim)
+    return table.concat(t, delim)
+end
+
 function util.trim(s)
     --if type(s)~="string" then return tostring(s) end
     if not s then return end
