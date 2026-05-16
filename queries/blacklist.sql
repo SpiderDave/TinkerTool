@@ -207,4 +207,4 @@ INSERT INTO blacklist VALUES ('recipe', 360); -- dev_recipe
 
 INSERT INTO blacklist VALUES ('summon', 37); -- pet_phoenix
 
-
+INSERT INTO blacklist VALUES ('fish', 3); -- chest_weapon (contains unobtainable Prisma weapons)

@@ -80,6 +80,21 @@ block blockGet:
                 for item in t["Shop"]:
                     db.expandItems(item, "Product")
             
+            if cat == "fish":
+                db.expandLoot(t, "Loot")
+                
+                let itemKey = t["Key"].getStr
+                var biomeKey: string
+                if t["Is Chest"].getStr == "TRUE":
+                    biomeKey = "Fish Chests"
+                else:
+                    biomeKey = "Fish"
+                
+                var w = fmt"""    "{biomeKey}" LIKE "%E_FISHS.{itemKey},%" COLLATE NOCASE"""
+                let biomeData = db.getData("biome", fmt"{biomeKey}", fmt"E_FISHS.{itemKey},", w)
+                t["biome"] = biomeData
+
+            
             if cat == "item":
                 # crafting
                 let itemKey = t["Key"].getStr
@@ -148,6 +163,24 @@ block blockGet:
                     fishData["biomes"] = biomes
                     
                     t["fish"] = fishData
+                
+                # Set bonus stuff
+                if t["Type"].getStr in ["Head", "Body", "Legs"]:
+                    if t.hasKey("Set Requirements") and t["Set Requirements"].len > 0:
+                        # Add basic data but don't duplicate the whole item itself
+                        t["Set Requirements"].elems.insert(%* {"Key": % t["Key"], "Type": % t["Type"], "Name": % t["Name"]}, 0)
+                    else:
+                        let node = %* []
+                        for key in db.getSetKeys(t["Key"].getStr):
+                            if key == t["Key"].getStr:
+                                # Add basic data but don't duplicate the whole item itself
+                                node.elems.insert(%* {"Key": % t["Key"], "Type": % t["Type"], "Name": % t["Name"]}, 0)
+                            else:
+                                let node2 = db.getData("item", "key", key)[0]
+                                node.elems.insert(%* node2, 0)
+                                if node2.hasKey("Set Description") and node2["Set Description"].getStr != "":
+                                    t["Set Description"] = % node2["Set Description"].getStr
+                        t["Set Requirements"] = node
                 
                 w = fmt"""    product = "E_ITEMS.{itemKey}" COLLATE NOCASE"""
                 let cookingRecipe = db.getData("cook", "product", fmt"E_ITEMS.{itemKey}", w)

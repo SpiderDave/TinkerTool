@@ -612,6 +612,15 @@ proc expandItems(db: DbConn, jObj: JsonNode, keys: varargs[string]) =
             else:
                 jObj[key] = db.expandItems(jObj[key].getStr)
 
+# recursive (good for expanding "Loot")
+proc expandLoot(db: DbConn, jObj: JsonNode, key: string) =
+    if jObj.hasKey(key):
+        jObj[key & "_unexpanded"] = jObj[key]
+        jObj[key] = db.expandItems(jObj[key].getStr)
+        
+        for item in jObj[key]:
+            db.expandLoot(item, "Items")
+
 #proc getItem(db: DbConn, name: string): JsonNode =
 #    db.getData("item", "name_localized", name)[0]
 
@@ -643,6 +652,37 @@ proc itemId(db: DbConn, name: string): int =
         t.add(node)
     
     return t[0]["ID"].getStr.parseInt
+
+proc getSetKeys(db: DbConn, key: string): seq[string] =
+    let queryString = fmt"""
+    SELECT
+    b.key as Key,
+    b.'Set Requirements' as 'Set Requirements'
+    
+    FROM item AS a
+    JOIN item AS b
+    ON b.'Set Requirements' LIKE "%[E_ITEMS." || a.Key || "]%"
+    
+    WHERE a.key = "{key}";
+    """
+    
+    var rows = db.get(queryString.sql)
+    if rows.len == 0:
+        return
+
+    let req = rows[0]["Set Requirements"]
+    
+    
+    
+    result.add(rows[0]["Key"])
+    for item in req.split("],["):
+        var item = item
+        item = item.replace("E_ITEMS.","").replace("[","").replace("]","")
+        result.add(item)
+
+#    return rows[0]["Set Requirements"]
+        
+#        for entry in itemString.split("],["):
 
 # get affix layout, like %ItemAffix% %ItemName%
 proc getAffixLayout(db: DbConn): string =
@@ -1033,7 +1073,15 @@ when isMainModule:
     db = open(cfg.get("dbFile"), "", "", "")
     
     if options.hasOpt("test") and cfg.getBool("debug"):
-        discard
+#        discard
+        echo "helmet:"
+        echo db.getSetKeys("helmet_wood")
+        echo ""
+        echo "armor:"
+        echo db.getSetKeys("armor_wood")
+        echo ""
+        echo "boots:"
+        echo db.getSetKeys("pants_wood")
     
     if options.hasOpt("loadplayer"):
         var filename = options.getOpt("loadplayer")[0]

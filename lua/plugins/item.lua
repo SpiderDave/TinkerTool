@@ -1,5 +1,4 @@
 -- ToDo / Issues:
---   * Armor doesn't show set information on every piece (typically just head)
 --   * Crafting sections don't show items in correct order (need to cross reference with craft_table and recipes)
 --   * Transmutation cube recipes
 --   * Chest information
@@ -19,7 +18,7 @@ function plugin:build()
     local infobox = ordered(
         "name", item.Name,
         "type", item.Type,
-        "duration", item.Duration,
+        "duration", item["Consume Duration"],
         "description", item.Description,
         "armor", item["Damage Reduction"],
         "damage", item.Damage,
@@ -71,7 +70,11 @@ function plugin:build()
         end
     end
     
-    if item.Type ~= "Usable" then infobox["Consume Duration"] = nil end
+    -- only show duration for usable items with buffs
+    if (item.Type ~= "Usable") or 
+       (item["Consume Buffs"] == "") or
+       (item["Consume Duration"] == "0") then infobox.duration = nil
+    end
     
     -- non-tools don't list tool tier
     if item.Type ~= "Tool" then infobox.tool = nil end
@@ -103,14 +106,17 @@ function plugin:build()
         infobox.powerrequired = item["Build Block"][1]["Power Required"]
     end
     
+    -- don't show power required for floor
+    if item.Type == "Floor" then
+        infobox.powerrequired = nil
+    end
+    
     -- Rune description
     if item.Enchant and #item.Enchant >0 then
         local enchant = item.Enchant[1]
         infobox.description = string.format('<span class="enchant">%s<br><br>Level 1/%s<br></span>Rune %02d', enchant.Description, enchant["Max Level"], tonumber(enchant.ID))
         infobox.description = infobox.description:gsub("{amount}", "[?-?]")
     end
-    
-    infobox.description = infobox.description:gsub("/n", "<br>")
     
     -- only works on Head item
     if item["Set Description"] ~= "" then
@@ -131,8 +137,10 @@ function plugin:build()
             t[i] = t[i] or ""
         end
         
-        infobox.description = string.format("{{set_bonus|%s|%s|%s|%s}}<br>", t[1], t[2], t[3], item["Set Description"]) .. infobox.description
+        infobox.description = string.format("{{set_bonus|%s|%s|%s|%s}}", t[1], t[2], t[3], item["Set Description"]) .. infobox.description
     end
+    
+    infobox.description = infobox.description:gsub("/n", "<br>")
     
     -- description for fish will be filled automatically
     if item.Type == "Fish" then
@@ -187,12 +195,12 @@ function plugin:build()
             for _, entry in ipairs(item[cookType]) do
                 txt = txt .. string.format("|-\n| {{item_simple|name=%s}} || ", entry.Product[1].Name)
                 if entry.Ingredients[1].Name == entry.Ingredients[2].Name then
-                    txt = txt .. string.format("2{{item_simple|name=%s}}", entry.Ingredients[1].Name)
+                    txt = txt .. string.format("2{{item_simple|name=%s}}\n", entry.Ingredients[1].Name)
                 else
-                    txt = txt .. string.format("1{{item_simple|name=%s}}<br>1{{item_simple|name=%s}}", entry.Ingredients[1].Name, entry.Ingredients[2].Name)
+                    txt = txt .. string.format("1{{item_simple|name=%s}}<br>1{{item_simple|name=%s}}\n", entry.Ingredients[1].Name, entry.Ingredients[2].Name)
                 end
             end
-            txt = txt .. "\n|}\n\n"
+            txt = txt .. "|}\n\n"
             sections[cookType] = txt
         end
     end
@@ -204,6 +212,9 @@ function plugin:build()
         local nItems = 0
         local title
         if craftType == "recipe" then title = "Recipe" else title = "Used to Craft" end
+        
+        --Recipe (Requires {{item|name=NAME (Recipe)}})
+        
         sections[craftType] = string.format('{| class="crafting %s"\n|+ %s\n|-\n! Result !! Ingredients !! Crafting Station\n', craftType, title)
         
         local craftsByStation = ordered()
@@ -233,10 +244,7 @@ function plugin:build()
                         line = line .. string.format("%s{{item_simple|name=%s}}",v.amount, v.name)
                         n=n+1
                     end
-                    line = line .. "\n"
-                    
                     craftsByStation[craftTableName][#craftsByStation[craftTableName]+1] = line
-                    
                     nItems = nItems + 1
                 end
             end
@@ -246,7 +254,13 @@ function plugin:build()
             for i, line in ipairs(lines) do
                 sections[craftType] = sections[craftType] .. line
                 if i == 1 then
-                    sections[craftType] = sections[craftType] .. string.format('| rowspan = "%s" | {{station|name=%s}}\n', #lines, station)
+                    if #lines == 1 then
+                        sections[craftType] = sections[craftType] .. string.format(' || {{station|name=%s}}\n', station)
+                    else
+                        sections[craftType] = sections[craftType] .. string.format('\n| rowspan = "%s" | {{station|name=%s}}\n', #lines, station)
+                    end
+                else
+                    sections[craftType] = sections[craftType] .. "\n"
                 end
             end
         end
