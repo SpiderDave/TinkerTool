@@ -621,6 +621,70 @@ proc expandLoot(db: DbConn, jObj: JsonNode, key: string) =
         for item in jObj[key]:
             db.expandLoot(item, "Items")
 
+proc expandQuestConditions(db: DbConn, conditionsString: string): JsonNode =
+    var t = %* {}
+    
+    var parts = conditionsString.split("|")
+    
+    let conditionType = case parts[0].parseInt:
+    of 0: "Kill Mobs"
+    of 1: "Bring Items"
+    of 5: "Get Buff"
+    of 6: "Talk to NPC"
+    of 7: "Have NPC Move In"
+    of 8: "Use Interactable"
+    of 9: "Craft Items"
+    else:
+        ""
+    
+    let dbType = case parts[0].parseInt:
+    of 0: "mob"
+    of 1: "item"
+    of 5: "buff"
+    of 6: "npc"
+    of 7: "npc"
+    of 8: "interactable"
+    of 9: "item"
+    else:
+        ""
+    
+    let entries = parts[2].split("=")
+    
+    t["type"] = %* {}
+    t["type"]["id"] = % parts[0].parseInt
+    t["type"]["text"] = % conditionType
+    t["type"]["db"] = % dbType
+    
+    if parts[1].parseInt != -1:
+        t["total"] = % parts[1].parseInt
+    
+    t["entries"] = %* []
+    
+    for entry in entries:
+        let id = entry.split("#")[0].parseInt
+        let amount = entry.split("#")[1].parseInt
+        let where = fmt"""    "id" = "{id}" """
+        let data = db.getData(dbType, "id", $id, where)[0]
+        db.expandItems(data, "Loot")
+        
+        var node = %* {
+            "id": % id,
+            "key": % data["Key"].getStr
+        }
+        
+        if data.hasKey("Name"):
+            node["name"] = % data["Name"].getStr
+        
+        if data.hasKey("Loot") and data["Loot"].elems.len > 0:
+            if data["Loot"][0].hasKey("Name"):
+                node["name"] = % data["Loot"][0]["Name"].getStr
+        
+        if amount != -1:
+            node["amount"] = % amount
+        t["entries"].add(node)
+    
+    return t
+
 #proc getItem(db: DbConn, name: string): JsonNode =
 #    db.getData("item", "name_localized", name)[0]
 

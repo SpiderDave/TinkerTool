@@ -44,6 +44,27 @@ function parseRecipeString(s)
     return t
 end
 
+function parseRewardString(s)
+    local t = ordered()
+    for _, item in ipairs(util.split(s, "],[")) do
+        item = item:replace("[[", "")
+        item = item:replace("]]", "")
+        item = item:replace("E_ITEMS.", "")
+        
+        local key, dummy, amountMin, amountMax, dbType = util.unpack(util.split(item, ","))
+        t[key] = {
+            key = key,
+            amount = {
+                min = tonumber(amountMin),
+                max = tonumber(amountMax),
+            },
+            dbType = dbType,
+        }
+    end
+    return t
+end
+
+
 --returns craft table name and type ("station" or "npc")
 function getCraftTableName(craftTable)
     if #craftTable > 0 or craftTable.Name then
@@ -68,3 +89,10 @@ function getCraftTableName(craftTable)
         return "By Hand", "station"
     end
 end
+
+function stripCodes(text)
+    text = text:gsub("%[#%w+%]", "")
+    return text
+end
+
+

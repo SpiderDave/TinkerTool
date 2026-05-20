@@ -1,4 +1,5 @@
 -- ToDo / Issues:
+--   * Set items with multiple combinations only show one
 --   * Crafting sections don't show items in correct order (need to cross reference with craft_table and recipes)
 --   * Transmutation cube recipes
 --   * Chest information

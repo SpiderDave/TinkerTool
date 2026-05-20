@@ -1,3 +1,6 @@
+-- ToDo / Issues:
+--   * Quest rewards don't work if using an item pool (ex: Gums)
+
 local plugin = {
     sep = ".",
     endLine = "\n"
@@ -63,12 +66,66 @@ function plugin:build()
             end
         end
         text = text.. "|}\n\n"
-        text = text .. "[[category:npc]]\n"
-        text = text .. "[[category:merchant]]\n"
-    else
-        text = text .. "[[category:npc]]\n"
     end
     
+    if #npc.Quests > 0 then
+        local questText = "==Quest==\n"
+        for _, quest in ipairs(npc.Quests) do
+            questText = questText .. '<div class="quest">\n;Quests\n'
+            questText = questText .. string.format(":{{npc|name=%s|icononly=true}} %s\n", npc.Name, quest.Title)
+            questText = questText .. string.format(':<span class="title">%s</span>\n', stripCodes(quest.Description))
+            questText = questText .. string.format(";%s\n", quest.data.type.text)
+            for _, entry in ipairs(quest.data.entries) do
+                local db = quest.data.type.db
+                if db == "npc" or db == "buff" or db == "interactable" then entry.amount = nil end
+                local template = string.format("{{%s|name=%s}}", db, entry.name or entry.key)
+                if db == "interactable" then
+                    if entry.name then
+                        template = string.format("{{item_simple|name=%s}}", entry.name)
+                    else
+                        template = entry.key
+                    end
+                end
+                
+                if db == "buff" then template = string.format("{{%s|%s}}", db, entry.name or entry.key) end
+                
+                if entry.amount then
+                    questText = questText .. string.format(":%s%s\n", entry.amount, template)
+                else
+                    questText = questText .. string.format(":%s\n", template)
+                end
+            end
+            if quest.data.total then
+                questText = questText .. string.format(";Total Required\n:%s\n", quest.data.total)
+            end
+            questText = questText .. ";Possible Rewards\n"
+            for _, reward in ordered.pairs(parseRewardString(quest.Reward_unexpanded)) do
+                for _, item in ipairs(quest.Reward) do
+                    if item.Key == reward.key then
+                        if reward.amount.min == reward.amount.max then
+                            if reward.amount.min == 1 then
+                                questText = questText .. string.format(":{{item_simple|name=%s}}\n", item.Name)
+                            else
+                                questText = questText .. string.format(":%s{{item_simple|name=%s}}\n", reward.amount.min, item.Name)
+                            end
+                        else
+                            questText = questText .. string.format(":%s-%s{{item_simple|name=%s}}\n", reward.amount.min, reward.amount.max, item.Name)
+                        end
+                        
+                    end
+                end
+                
+                
+            end
+            questText = questText .. '</div>\n\n'
+        end
+        text = text .. questText
+    end
+    
+    text = text .. "[[category:npc]]\n"
+    if #npc.Shop > 0 then
+        text = text .. "[[category:merchant]]\n"
+    end
     
     self.text = text
 end

@@ -60,7 +60,8 @@ block blockGet:
         var rowIndex = 0
         for t in db.getData(queryString):
             db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet",
-            "Equipped Armor", "Equipped Legs", "Texts", "Build Block", "Enchant", "Set Requirements")
+            "Equipped Armor", "Equipped Legs", "Texts", "Build Block", "Enchant", "Set Requirements",
+            "Quests")
         
             # expand furniture to get the item instead of interactable
             if t.hasKey("Furniture Required"):
@@ -93,7 +94,6 @@ block blockGet:
                 var w = fmt"""    "{biomeKey}" LIKE "%E_FISHS.{itemKey},%" COLLATE NOCASE"""
                 let biomeData = db.getData("biome", fmt"{biomeKey}", fmt"E_FISHS.{itemKey},", w)
                 t["biome"] = biomeData
-
             
             if cat == "item":
                 # crafting
@@ -196,7 +196,20 @@ block blockGet:
                 t["cooking_usedtocook"] = cookingUsedToCook
                 
 #                        let fishKey = fishData["Key"].getStr
-                
+            
+            if t.hasKey("Quests"):
+                var i=0
+                for quest in t["Quests"]:
+                    t["Quests"][i]["data"] = db.expandQuestConditions(t["Quests"][i]["Conditions"].getStr)
+                    db.expandItems(t["Quests"][i], "Reward")
+                    
+                    if t["Quests"][i].hasKey("Reward"):
+                        for r in t["Quests"][i]["Reward"]:
+                            if r.hasKey("Items"):
+                                db.expandItems(r, "Items")
+                    
+                    i += 1
+            
             let templateName = options.getOpt("template")[0]
             
             var text = loadTemplate(templateName)
