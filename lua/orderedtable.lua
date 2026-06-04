@@ -89,6 +89,15 @@ function Ordered:move(key, newIndex)
     table.insert(keys, newIndex, key)
 end
 
+function Ordered:remove(key)
+    local keys = getKeys(self)
+
+    local old = findIndex(keys, key)
+    if not old then return end
+
+    table.remove(keys, old)
+end
+
 function Ordered:moveToFront(key)
     self:move(key, 1)
 end

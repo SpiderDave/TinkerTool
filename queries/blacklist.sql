@@ -208,3 +208,6 @@ INSERT INTO blacklist VALUES ('recipe', 360); -- dev_recipe
 INSERT INTO blacklist VALUES ('summon', 37); -- pet_phoenix
 
 INSERT INTO blacklist VALUES ('fish', 3); -- chest_weapon (contains unobtainable Prisma weapons)
+
+INSERT INTO blacklist VALUES ('quest', 98); -- Monster Solidification - Swamp Worm
+INSERT INTO blacklist VALUES ('quest', 116); -- Monster Solidification - Mushroom Worker

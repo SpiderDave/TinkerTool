@@ -1,5 +1,5 @@
 -- ToDo / Issues:
---   * Quest rewards don't work if using an item pool (ex: Gums)
+--   * Quest rewards may not work with nested item pools (not sure if this is ever done)
 
 local plugin = {
     sep = ".",
@@ -10,12 +10,18 @@ function plugin:build()
     local npc = self.data
 
     local infobox = ordered(
+        "names", util.join(npc.Names, ", "),
         "type", "[[NPC]]",
         "environment", " ",
         "requirements", "",
         "likes", "",
         "dislikes", ""
     )
+    
+    -- If the first name is an exact match then don't list names.
+    if npc.Names[1] == npc.Name then
+        infobox:remove("names")
+    end
     
     if #npc.Shop > 0 then infobox.type = infobox.type .. ", [[Merchant]]" end
     
@@ -69,9 +75,9 @@ function plugin:build()
     end
     
     if #npc.Quests > 0 then
-        local questText = "==Quest==\n"
+        local questText = "==Quests==\n"
         for _, quest in ipairs(npc.Quests) do
-            questText = questText .. '<div class="quest">\n;Quests\n'
+            questText = questText .. '<div class="quest">\n;Quest\n'
             questText = questText .. string.format(":{{npc|name=%s|icononly=true}} %s\n", npc.Name, quest.Title)
             questText = questText .. string.format(':<span class="title">%s</span>\n', stripCodes(quest.Description))
             questText = questText .. string.format(";%s\n", quest.data.type.text)
@@ -79,6 +85,9 @@ function plugin:build()
                 local db = quest.data.type.db
                 if db == "npc" or db == "buff" or db == "interactable" then entry.amount = nil end
                 local template = string.format("{{%s|name=%s}}", db, entry.name or entry.key)
+                if db == "item" then
+                    template = string.format("{{item_simple|name=%s}}", entry.name or entry.key)
+                end
                 if db == "interactable" then
                     if entry.name then
                         template = string.format("{{item_simple|name=%s}}", entry.name)
@@ -98,24 +107,48 @@ function plugin:build()
             if quest.data.total then
                 questText = questText .. string.format(";Total Required\n:%s\n", quest.data.total)
             end
-            questText = questText .. ";Possible Rewards\n"
-            for _, reward in ordered.pairs(parseRewardString(quest.Reward_unexpanded)) do
-                for _, item in ipairs(quest.Reward) do
-                    if item.Key == reward.key then
-                        if reward.amount.min == reward.amount.max then
-                            if reward.amount.min == 1 then
-                                questText = questText .. string.format(":{{item_simple|name=%s}}\n", item.Name)
-                            else
-                                questText = questText .. string.format(":%s{{item_simple|name=%s}}\n", reward.amount.min, item.Name)
+            
+            if #quest.Reward > 0 then
+                if #quest.Reward > 1 then
+                    questText = questText .. ";Rewards\n"
+                else
+                    questText = questText .. ";Reward\n"
+                end
+                for _, reward in ordered.pairs(parseRewardString(quest.Reward_unexpanded)) do
+                    for _, item in ipairs(quest.Reward) do
+                        if item.Key == reward.key then
+                            if reward.dbType == "item_pool" then
+                                questText = questText .. string.format(":One of:\n", item.Name)
+                                for _, reward2 in ordered.pairs(parseRewardString(item.Items_unexpanded)) do
+                                    for _, item in ipairs(item.Items) do
+                                        if item.Key == reward2.key then
+                                            if reward.amount.min == reward.amount.max then
+                                                if reward.amount.min == 1 then
+                                                    questText = questText .. string.format("::{{item_simple|name=%s}}\n", item.Name)
+                                                else
+                                                    questText = questText .. string.format("::%s{{item_simple|name=%s}}\n", reward.amount.min, item.Name)
+                                                end
+                                            else
+                                                questText = questText .. string.format("::%s-%s{{item_simple|name=%s}}\n", reward.amount.min, reward.amount.max, item.Name or item.Key or "?")
+                                            end
+                                        end
+                                    end
+                                end
                             end
-                        else
-                            questText = questText .. string.format(":%s-%s{{item_simple|name=%s}}\n", reward.amount.min, reward.amount.max, item.Name)
+                            if reward.dbType == "item" then
+                                if reward.amount.min == reward.amount.max then
+                                    if reward.amount.min == 1 then
+                                        questText = questText .. string.format(":{{item_simple|name=%s}}\n", item.Name)
+                                    else
+                                        questText = questText .. string.format(":%s{{item_simple|name=%s}}\n", reward.amount.min, item.Name)
+                                    end
+                                else
+                                    questText = questText .. string.format(":%s-%s{{item_simple|name=%s}}\n", reward.amount.min, reward.amount.max, item.Name or item.Key or "?")
+                                end
+                            end
                         end
-                        
                     end
                 end
-                
-                
             end
             questText = questText .. '</div>\n\n'
         end

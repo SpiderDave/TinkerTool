@@ -16,7 +16,8 @@ import
     std/random
 
 # statically compile sqlite3
-{.compile: "./lib/sqlite/sqlite3.c".}
+# unfortunately, it still won't use this and it's a hassle.
+#{.compile: "./lib/sqlite/sqlite3.c".}
 
 import
     pixie,                  # nimble install pixie
@@ -583,6 +584,9 @@ proc expandTexts(db: DbConn, itemString: string): JsonNode =
     # [[lang(LK.K_NPC_DIALOGUE_TRAVELLING_MERCHANT_01)],[lang(LK.K_NPC_DIALOGUE_TRAVELLING_MERCHANT_02)]]
     var t = %* []
     
+    if itemString.len == 0:
+        return t
+    
     var keys = itemString[1..<itemString.len-1]
     
     keys = keys.replace("[lang(LK.","'")
@@ -607,7 +611,7 @@ proc expandItems(db: DbConn, jObj: JsonNode, keys: varargs[string]) =
     for key in keys:
         if jObj.hasKey(key):
             jObj[key & "_unexpanded"] = jObj[key]
-            if key == "Texts":
+            if key == "Texts" or key == "Names":
                 jObj[key] = db.expandTexts(jObj[key].getStr)
             else:
                 jObj[key] = db.expandItems(jObj[key].getStr)
@@ -669,13 +673,14 @@ proc expandQuestConditions(db: DbConn, conditionsString: string): JsonNode =
         
         var node = %* {
             "id": % id,
-            "key": % data["Key"].getStr
+            "key": % data["Key"].getStr,
+            "dbType": % dbType
         }
         
         if data.hasKey("Name"):
             node["name"] = % data["Name"].getStr
         
-        if data.hasKey("Loot") and data["Loot"].elems.len > 0:
+        if dbType == "interactable" and data.hasKey("Loot") and data["Loot"].elems.len > 0:
             if data["Loot"][0].hasKey("Name"):
                 node["name"] = % data["Loot"][0]["Name"].getStr
         

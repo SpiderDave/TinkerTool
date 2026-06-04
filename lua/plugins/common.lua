@@ -45,13 +45,15 @@ function parseRecipeString(s)
 end
 
 function parseRewardString(s)
+    if s == "" then return nil end
     local t = ordered()
     for _, item in ipairs(util.split(s, "],[")) do
         item = item:replace("[[", "")
         item = item:replace("]]", "")
         item = item:replace("E_ITEMS.", "")
-        
+        item = item:replace("E_ITEM_POOLS.", "")
         local key, dummy, amountMin, amountMax, dbType = util.unpack(util.split(item, ","))
+        dbType = util.split(dbType, "db_")[2]
         t[key] = {
             key = key,
             amount = {
@@ -92,6 +94,8 @@ end
 
 function stripCodes(text)
     text = text:gsub("%[#%w+%]", "")
+    text = text:gsub("/n", "<br>")
+    text = text:gsub("<%%verb_dash%%>", "<Space>")
     return text
 end
 

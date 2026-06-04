@@ -18,6 +18,7 @@ block blockGet:
     if key == "name": key = "name_localized"
     if key == "description": key = "description_localized"
     if key == "gender": key = "gender_localized"
+    if key == "title": key = "title_localized"
     
     var queryString: string
     
@@ -60,8 +61,8 @@ block blockGet:
         var rowIndex = 0
         for t in db.getData(queryString):
             db.expandItems(t, "Shop", "Likes", "Dislikes", "Furniture Required", "Equipped Helmet",
-            "Equipped Armor", "Equipped Legs", "Texts", "Build Block", "Enchant", "Set Requirements",
-            "Quests")
+            "Equipped Armor", "Equipped Legs", "Texts", "Names", "Build Block", "Enchant",
+            "Set Requirements", "Quests")
         
             # expand furniture to get the item instead of interactable
             if t.hasKey("Furniture Required"):
@@ -194,12 +195,9 @@ block blockGet:
                 
                 t["cooking_recipe"] = cookingRecipe
                 t["cooking_usedtocook"] = cookingUsedToCook
-                
-#                        let fishKey = fishData["Key"].getStr
             
             if t.hasKey("Quests"):
-                var i=0
-                for quest in t["Quests"]:
+                for i, quest in t["Quests"].elems:
                     t["Quests"][i]["data"] = db.expandQuestConditions(t["Quests"][i]["Conditions"].getStr)
                     db.expandItems(t["Quests"][i], "Reward")
                     
@@ -207,8 +205,6 @@ block blockGet:
                         for r in t["Quests"][i]["Reward"]:
                             if r.hasKey("Items"):
                                 db.expandItems(r, "Items")
-                    
-                    i += 1
             
             let templateName = options.getOpt("template")[0]
             
@@ -274,6 +270,7 @@ block blockGet:
             else:
                 let values = toSeq(row.values)[0]
                 print fmt"""{values}"""
+            nItems += 1
         else:
             if options.hasOpt("only"):
                 discard
@@ -394,4 +391,5 @@ block blockGet:
                         makeImage(fromFile, toFile, w, h)
     
     if options.hasOpt("enumerate"):
+        print()
         print fmt"{nItems} results."

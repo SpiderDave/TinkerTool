@@ -141,7 +141,9 @@ function plugin:build()
         infobox.description = string.format("{{set_bonus|%s|%s|%s|%s}}", t[1], t[2], t[3], item["Set Description"]) .. infobox.description
     end
     
-    infobox.description = infobox.description:gsub("/n", "<br>")
+    if infobox.description then
+        infobox.description = stripCodes(infobox.description)
+    end
     
     -- description for fish will be filled automatically
     if item.Type == "Fish" then
